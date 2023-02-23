@@ -5,23 +5,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
 
+import java.util.function.Consumer;
+
 
 /**
+ * This class allows to:
+ * 1. Create a new tenant
+ * 2. Add a new Device to a tenant,
+ * 3. Set up the credentials for the device including auth-id and password
+ *
  * @author Riccardo Prevedi
  * @created 23/02/2023 - 11:21
  * @project architectures-iot
  */
 
-public class HttpDeviceProvisioneManagement {
+public class HttpProvisioningManagementApp {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HttpDeviceProvisioneManagement.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HttpProvisioningManagementApp.class);
     private static final String tenantDRMApi = "/v1/tenants/";
     private static final String deviceDRMApi = "/v1/devices/";
     private static final String credentialDRMApi = "/v1/credentials/";
     private static final String myDeviceId = "device-mqtt-1";
     private static final String myPassword = "mqtt-1-password";
+    private static final String myAuthId = "auth-device-mqtt-1";
 
-    public HttpDeviceProvisioneManagement() {
+    public HttpProvisioningManagementApp() {
     }
 
     public static void main(String[] args) {
@@ -34,7 +42,40 @@ public class HttpDeviceProvisioneManagement {
         deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
         createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
         addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
-        setDevicePassword(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myPassword);
+        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
+    }
+
+
+    /**
+     * Search devices for a tenant with optional filters, paging and sorting options.
+     *
+     * @param resourcePath  "/v1/devices/"
+     * @param tenantId      "myTenant"
+     */
+    public static void getDeviceByTenant(String resourcePath, String tenantId){
+        Unirest
+                .get(resourcePath + HonoConstants.MY_TENANT_ID)
+                .header("accept", "application/json")
+                .asJson()
+                .ifSuccess(new Consumer<HttpResponse<JsonNode>>() {
+                    @Override
+                    public void accept(HttpResponse<JsonNode> httpResponse) {
+                        LOG.info("response: {}", httpResponse.getBody().toPrettyString());
+                    }
+                })
+                .ifFailure(new Consumer<HttpResponse<JsonNode>>() {
+                    @Override
+                    public void accept(HttpResponse<JsonNode> httpResponse) {
+                        LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                        httpResponse.getParsingError().ifPresent(new Consumer<UnirestParsingException>() {
+                            @Override
+                            public void accept(UnirestParsingException exception) {
+                                LOG.error("Parsing Exception " + exception);
+                                LOG .error("Original Body: {}", exception.getOriginalBody());
+                            }
+                        });
+                    }
+                });
     }
 
 
@@ -52,43 +93,19 @@ public class HttpDeviceProvisioneManagement {
      *
      * @param resourcePath "/v1/credentials/"
      * @param tenantId     "mytenant"
+     * @param deviceId     "device-mqtt-1"
      * @param authId       "auth-device-mqtt-1"
      * @param password     "mqtt-1-password"
      */
-    private static void setDevicePassword(String resourcePath, String tenantId, String authId, String password) {
+    private static void setDeviceAuthorization(String resourcePath, String tenantId, String deviceId, String authId, String password) {
         Unirest
-                .put(resourcePath + tenantId + "/" + authId)
+                .put(resourcePath + tenantId + "/" + deviceId)
                 .header("content-type", "application/json")
                 .body(String.format("[{ \"type\": \"hashed-password\", \"auth-id\": \"%s\", \"secrets\": [{\"pwd-plain\": \"%s\" }] }]",
                         authId,
                         password))
                 .asJson()
                 .ifSuccess(httpResponse -> LOG.info("Password is Set !"))
-                .ifFailure(httpResponse -> {
-                    LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
-                    httpResponse.getParsingError().ifPresent(exception -> {
-                        LOG.error("Parsing Exception " + exception);
-                        LOG.error("Original Body: {}", exception.getOriginalBody());
-                    });
-                });
-    }
-
-
-    /**
-     * Delete an existing device registration
-     * <p>
-     * <p>
-     * curl -i -X DELETE http://${REGISTRY_IP}:28080/v1/devices/${MY_TENANT}/${MY_DEVICE}
-     *
-     * @param resourcePath "/v1/devices/"
-     * @param tenantId     "myTenant"
-     * @param deviceId     "device-mqtt-1"
-     */
-    private static void deleteDeviceFromTenant(String resourcePath, String tenantId, String deviceId) {
-        Unirest
-                .delete(resourcePath + tenantId + "/" + deviceId)
-                .asEmpty()
-                .ifSuccess(httpResponse -> LOG.info("{} correctly removed from {}", deviceId, tenantId))
                 .ifFailure(httpResponse -> {
                     LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
                     httpResponse.getParsingError().ifPresent(exception -> {
@@ -147,6 +164,30 @@ public class HttpDeviceProvisioneManagement {
                     httpResponse.getParsingError().ifPresent(exception -> {
                         LOG.error("Parsing exception: " + exception);
                         LOG.error("Original body: {}", exception.getOriginalBody());
+                    });
+                });
+    }
+
+    /**
+     * Delete an existing device registration
+     * <p>
+     * <p>
+     * curl -i -X DELETE http://${REGISTRY_IP}:28080/v1/devices/${MY_TENANT}/${MY_DEVICE}
+     *
+     * @param resourcePath "/v1/devices/"
+     * @param tenantId     "myTenant"
+     * @param deviceId     "device-mqtt-1"
+     */
+    private static void deleteDeviceFromTenant(String resourcePath, String tenantId, String deviceId) {
+        Unirest
+                .delete(resourcePath + tenantId + "/" + deviceId)
+                .asEmpty()
+                .ifSuccess(httpResponse -> LOG.info("{} correctly removed from {}", deviceId, tenantId))
+                .ifFailure(httpResponse -> {
+                    LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    httpResponse.getParsingError().ifPresent(exception -> {
+                        LOG.error("Parsing Exception " + exception);
+                        LOG.error("Original Body: {}", exception.getOriginalBody());
                     });
                 });
     }
