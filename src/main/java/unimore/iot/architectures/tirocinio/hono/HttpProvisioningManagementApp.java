@@ -26,8 +26,8 @@ public class HttpProvisioningManagementApp {
     private static final String deviceDRMApi = "/v1/devices/";
     private static final String credentialDRMApi = "/v1/credentials/";
     private static final String myDeviceId = "device-mqtt-1";
-    private static final String myPassword = "mqtt-1-password";
-    private static final String myAuthId = "auth-device-mqtt-1";
+    private static final String myPassword = "mypassword";
+    private static final String myAuthId = "mydevice";
 
     public HttpProvisioningManagementApp() {
     }
@@ -38,8 +38,8 @@ public class HttpProvisioningManagementApp {
                 HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
         Unirest.config().defaultBaseUrl(baseUrl);
 
-        deleteTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
-        deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
+        //deleteTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
+        //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
         createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
         addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
         setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
@@ -131,7 +131,7 @@ public class HttpProvisioningManagementApp {
                 .asEmpty()
                 .ifSuccess(httpResponse -> LOG.info("{} correctly deleted !", tenantId))
                 .ifFailure(httpResponse -> {
-                    LOG.error("Oh no, Status: {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    LOG.error("Oh No ! Status: {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
                     httpResponse.getParsingError().ifPresent(exception -> {
                         LOG.error("Parsing Exception " + exception);
                         LOG.error("Original Body: {}", exception.getOriginalBody());
