@@ -22,9 +22,9 @@ import static unimore.iot.architectures.tirocinio.hono.HttpProvisioningManagemen
  */
 
 public class HttpAmqpApp {
+    private static final Logger LOG = LoggerFactory.getLogger(HttpAmqpApp.class);
     public static final String HONO_CLIENT_USER = "consumer@HONO";
     public static final String HONO_CLIENT_PASSWORD = "verysecret";
-    private static final Logger LOG = LoggerFactory.getLogger(HttpAmqpApp.class);
     private static final String deviceDRMApi = "/v1/devices/";
     private static final int RECONNECT_ATTEMPTS = 1;
     private AmqpApplicationClient client;   // An AMQP 1.0 based client that supports Hono's north bound operations
@@ -43,7 +43,7 @@ public class HttpAmqpApp {
     }
 
     public static void main(String[] args) {
-        String baseUrl = String.format("http://%s:%d",  // http://192.168.181.17:31735
+        String baseUrl = String.format("http://%s:%d",
                 HonoConstants.HONO_HOST,
                 HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
         Unirest.config().defaultBaseUrl(baseUrl);
@@ -77,7 +77,7 @@ public class HttpAmqpApp {
         connection
                 .connect()
                 .onSuccess(c -> {
-                    LOG.info("The Client {} is connected to the AMQP messaging router!", HONO_CLIENT_USER);
+                    LOG.info("The Client {} is connect to the AMQP messaging router!", HONO_CLIENT_USER);
                     LOG.info("Ready for Hono operations : Telemetry ...");
                     start(c);
                 })
