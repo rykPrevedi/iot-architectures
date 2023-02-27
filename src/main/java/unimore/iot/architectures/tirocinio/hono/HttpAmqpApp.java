@@ -1,12 +1,15 @@
 package unimore.iot.architectures.tirocinio.hono;
 
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import kong.unirest.Unirest;
 import org.eclipse.hono.application.client.DownstreamMessage;
 import org.eclipse.hono.application.client.MessageConsumer;
 import org.eclipse.hono.application.client.amqp.AmqpApplicationClient;
 import org.eclipse.hono.application.client.amqp.AmqpMessageContext;
 import org.eclipse.hono.application.client.amqp.ProtonBasedApplicationClient;
+import org.eclipse.hono.client.ServiceInvocationException;
 import org.eclipse.hono.client.amqp.config.ClientConfigProperties;
 import org.eclipse.hono.client.amqp.connection.HonoConnection;
 import org.slf4j.Logger;
@@ -32,6 +35,9 @@ public class HttpAmqpApp {
     private final ClientConfigProperties config;
     private MessageConsumer telemetryConsumer;
 
+    private static Buffer temperatureValue;
+    private static final String COMMAND_SEND_TEST = "test";
+
     public HttpAmqpApp() {
         vertx = Vertx.vertx();
         config = new ClientConfigProperties();
@@ -54,6 +60,27 @@ public class HttpAmqpApp {
         amqpApp.connect();
     }
 
+    private void sendOneWayCommandToDevice(Buffer commandBuffer) {
+        client.sendOneWayCommand(HonoConstants.MY_TENANT_ID, "device-mqtt-1", COMMAND_SEND_TEST, commandBuffer)
+                .onSuccess(new Handler<Void>() {
+                    @Override
+                    public void handle(Void status) {
+                            LOG.info("Successfully sent one-way command payload: [{}] and received status [{}].", commandBuffer, status);
+                    }
+                })
+                .onFailure(new Handler<Throwable>() {
+                    @Override
+                    public void handle(Throwable t) {
+                        if (t instanceof ServiceInvocationException) {
+                            int errorCode = ((ServiceInvocationException) t).getErrorCode();
+                            LOG.debug("One-way command was replied with error code [{}].", errorCode);
+                        } else {
+                            LOG.debug("Could not send one-way command : {}.", t.getMessage());
+                        }
+                    }
+                });
+    }
+
 
     /**
      * Handler method for a Message from Hono that was received as telemetry data.
@@ -64,7 +91,9 @@ public class HttpAmqpApp {
      *
      * @param downstreamMessage The message that was received.
      */
-    private static void handleTelemetryMessage(DownstreamMessage<AmqpMessageContext> downstreamMessage) {
+    private void handleTelemetryMessage(DownstreamMessage<AmqpMessageContext> downstreamMessage) {
+        temperatureValue = downstreamMessage.getPayload();
+        sendOneWayCommandToDevice(temperatureValue);
         LOG.info("received telemetry data [tenant: {}, device: {}, content-type: {}]: [{}].",
                 downstreamMessage.getTenantId(),
                 downstreamMessage.getDeviceId(),
@@ -88,13 +117,24 @@ public class HttpAmqpApp {
         // ProtonBasedApplicationClient Implements AmqpApplicationClient.
         // A vertx-proton based client that supports Hono's north bound operations to send commands and receive telemetry, event and command response messages.
         client = new ProtonBasedApplicationClient(connection);
-        consumeData();
+        createTelemetryConsumer();
     }
 
-    private void consumeData() {
+
+    private void createTelemetryConsumer() {
         client.createTelemetryConsumer(HonoConstants.MY_TENANT_ID,
-                        HttpAmqpApp::handleTelemetryMessage,
-                        t -> LOG.error("telemetry consumer closed by remote " + t))
-                .onSuccess(messageConsumer -> telemetryConsumer = messageConsumer);
+                new Handler<DownstreamMessage<AmqpMessageContext>>() {
+                    @Override
+                    public void handle(DownstreamMessage<AmqpMessageContext> msg) {
+
+                        handleTelemetryMessage(msg);
+
+                    }
+                }, new Handler<Throwable>() {
+                    @Override
+                    public void handle(Throwable t) {
+                        LOG.error("telemetry consumer closed by remote " + t);
+                    }
+                }).onSuccess(messageConsumer -> telemetryConsumer = messageConsumer);
     }
 }
