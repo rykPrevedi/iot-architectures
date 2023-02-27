@@ -36,6 +36,7 @@ public class HttpAmqpApp {
     private MessageConsumer telemetryConsumer;
 
     private static Buffer temperatureValue;
+    private final String subDeviceId = "device-mqtt-1";
     private static final String COMMAND_SEND_TEST = "test";
 
     public HttpAmqpApp() {
@@ -60,12 +61,16 @@ public class HttpAmqpApp {
         amqpApp.connect();
     }
 
-    private void sendOneWayCommandToDevice(Buffer commandBuffer) {
-        client.sendOneWayCommand(HonoConstants.MY_TENANT_ID, "device-mqtt-1", COMMAND_SEND_TEST, commandBuffer)
+
+    private void sendOneWayCommandToDevice(DownstreamMessage<AmqpMessageContext> downstreamMessage) {
+        temperatureValue = downstreamMessage.getPayload();
+        client.sendOneWayCommand(HonoConstants.MY_TENANT_ID, subDeviceId, COMMAND_SEND_TEST, temperatureValue)
                 .onSuccess(new Handler<Void>() {
                     @Override
                     public void handle(Void status) {
-                            LOG.info("Successfully sent one-way command payload: [{}] and received status [{}].", commandBuffer, status);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Successfully sent one-way command payload: [{}] ", temperatureValue);
+                        }
                     }
                 })
                 .onFailure(new Handler<Throwable>() {
@@ -92,8 +97,6 @@ public class HttpAmqpApp {
      * @param downstreamMessage The message that was received.
      */
     private void handleTelemetryMessage(DownstreamMessage<AmqpMessageContext> downstreamMessage) {
-        temperatureValue = downstreamMessage.getPayload();
-        sendOneWayCommandToDevice(temperatureValue);
         LOG.info("received telemetry data [tenant: {}, device: {}, content-type: {}]: [{}].",
                 downstreamMessage.getTenantId(),
                 downstreamMessage.getDeviceId(),
@@ -107,7 +110,7 @@ public class HttpAmqpApp {
                 .connect()
                 .onSuccess(c -> {
                     LOG.info("The Client {} is connect to the AMQP messaging router!", HONO_CLIENT_USER);
-                    LOG.info("Ready for Hono operations : Telemetry ...");
+                    LOG.info("Ready for Hono operations : Telemetry ... Command ... ");
                     start(c);
                 })
                 .onFailure(t -> LOG.error(" {} ", t.getMessage()));
@@ -126,8 +129,8 @@ public class HttpAmqpApp {
                 new Handler<DownstreamMessage<AmqpMessageContext>>() {
                     @Override
                     public void handle(DownstreamMessage<AmqpMessageContext> msg) {
-
                         handleTelemetryMessage(msg);
+                        sendOneWayCommandToDevice(msg);
 
                     }
                 }, new Handler<Throwable>() {

@@ -20,11 +20,11 @@ public class HonoConstants {
      */
     // (eclipse-hono-service-device-registry-ext)
     // external Port where the endpoint can be reached via the HTTP protocol communication
-    public static final int HONO_HTTP_DEVICE_REGISTRY_PORT = 30873;
+    public static final int HONO_HTTP_DEVICE_REGISTRY_PORT = 30274;
 
     // (eclipse-hono-service-device-registry-ext)
     // external Port where the endpoint can be reached via the HTTPS protocol communication
-    public static final int HONO_HTTPS_DEVICE_REGISTRY_PORT = 31005;
+    public static final int HONO_HTTPS_DEVICE_REGISTRY_PORT = 30054;
 
     /**
      * AMQP-MESSAGING-NETWORK-ROUTER
@@ -34,11 +34,11 @@ public class HonoConstants {
      */
     // (eclipse-hono-dispatch-router-ext)
     // external Port where the endpoint can be reached via the AMQP protocol communication
-    public static final int HONO_AMQP_CONSUMER_PORT = 32124;
+    public static final int HONO_AMQP_CONSUMER_PORT = 30546;
 
     // (eclipse-hono-dispatch-router-ext)
     // external Port where the endpoint can be reached via the AMQPS protocol communication
-    public static final int HONO_AMQPS_CONSUMER_PORT = 31945;
+    public static final int HONO_AMQPS_CONSUMER_PORT = 30974;
 
     /**
      * MQTT-HONO-PROTOCOL-ADAPTER
@@ -47,11 +47,11 @@ public class HonoConstants {
      */
     // (eclipse-hono-adapter-mqtt)
     // external Port where the endpoint can be reached via the MQTT protocol communication
-    public static final int HONO_MQTT_ADAPTER_PORT = 31724;
+    public static final int HONO_MQTT_ADAPTER_PORT = 30124;
 
     // (eclipse-hono-adapter-mqtt)
     // external Port where the endpoint can be reached via the MQTT protocol communication
-    public static final int HONO_SECURE_MQTT_ADAPTER_PORT = 30786;
+    public static final int HONO_SECURE_MQTT_ADAPTER_PORT = 30267;
 
     /**
      * Hono is designed to structure

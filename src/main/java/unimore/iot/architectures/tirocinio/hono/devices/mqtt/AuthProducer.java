@@ -24,9 +24,9 @@ public class AuthProducer {
     private static final String MQTT_USERNAME = "mydevice@mytenant";
     private static final String MQTT_PASSWORD = "mypassword";
     private static final String TOPIC = "telemetry";
-    private static final int MESSAGE_COUNT = 10;
-    private static final int QOS = 0;
     private static final String METADATA = "/?content-type=text%2Fplain";
+    private static final int QOS = 0;
+    private static final int MESSAGE_COUNT = 10;
     private static IMqttClient client;
     private static MqttConnectOptions options;
 
@@ -41,7 +41,7 @@ public class AuthProducer {
 
     public static void main(String[] args) {
 
-        LOG.info("Client started ... ");
+        LOG.info("Client Auth started ... ");
 
         try {
 

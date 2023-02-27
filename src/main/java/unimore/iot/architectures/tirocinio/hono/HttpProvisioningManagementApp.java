@@ -25,9 +25,12 @@ public class HttpProvisioningManagementApp {
     private static final String tenantDRMApi = "/v1/tenants/";
     private static final String deviceDRMApi = "/v1/devices/";
     private static final String credentialDRMApi = "/v1/credentials/";
-    private static final String myDeviceId = "device-mqtt-1";
+    private static final String myDeviceId = "mqtt-auth-device";
     private static final String myPassword = "mypassword";
     private static final String myAuthId = "mydevice";
+    private static final String mqttJsonDeviceId = "mqtt-json-device";
+    private static final String mqttJsonPassword = "mqttjsonpassword";
+    private static final String mqttJsonAuthId = "mqttjson";
 
     public HttpProvisioningManagementApp() {
     }
@@ -40,9 +43,12 @@ public class HttpProvisioningManagementApp {
 
         //deleteTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
         //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
-        createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
+        //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
+        //createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
         addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
         setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
+        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
+        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId, mqttJsonAuthId, mqttJsonPassword);
     }
 
 
@@ -60,7 +66,7 @@ public class HttpProvisioningManagementApp {
                 .ifSuccess(new Consumer<HttpResponse<JsonNode>>() {
                     @Override
                     public void accept(HttpResponse<JsonNode> httpResponse) {
-                        LOG.info("response: {}", httpResponse.getBody().toPrettyString());
+                        LOG.info("Device IDs that belong to the tenant - {}:\n{}", tenantId, httpResponse.getBody().toPrettyString());
                     }
                 })
                 .ifFailure(new Consumer<HttpResponse<JsonNode>>() {
@@ -182,7 +188,7 @@ public class HttpProvisioningManagementApp {
         Unirest
                 .delete(resourcePath + tenantId + "/" + deviceId)
                 .asEmpty()
-                .ifSuccess(httpResponse -> LOG.info("{} correctly removed from {}", deviceId, tenantId))
+                .ifSuccess(httpResponse -> LOG.info("{} correctly removed from tenant - {}", deviceId, tenantId))
                 .ifFailure(httpResponse -> {
                     LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
                     httpResponse.getParsingError().ifPresent(exception -> {
