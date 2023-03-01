@@ -31,6 +31,9 @@ public class HttpProvisioningManagementApp {
     private static final String mqttJsonDeviceId = "mqtt-json-device";
     private static final String mqttJsonPassword = "mqttjsonpassword";
     private static final String mqttJsonAuthId = "mqttjson";
+    private static final String mqttConsumerDeviceId = "mqtt-consumer-device";
+    private static final String mqttConsumerPassword = "mqttconsumerpassword";
+    private static final String mqttConsumerAuthId = "mqttconsumer";
 
     public HttpProvisioningManagementApp() {
     }
@@ -45,10 +48,14 @@ public class HttpProvisioningManagementApp {
         //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
         //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
         //createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
-        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
-        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
-        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
-        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId, mqttJsonAuthId, mqttJsonPassword);
+        //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
+        //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
+        //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
+        //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId, mqttJsonAuthId, mqttJsonPassword);
+        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId);
+        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId, mqttConsumerAuthId, mqttConsumerPassword);
+
+
     }
 
 

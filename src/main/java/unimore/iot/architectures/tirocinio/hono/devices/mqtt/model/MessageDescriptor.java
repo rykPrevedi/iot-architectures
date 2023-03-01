@@ -26,4 +26,38 @@ public class MessageDescriptor {
         this.type = type;
         this.value = value;
     }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public double getValue() {
+        return value;
+    }
+
+    public void setValue(double value) {
+        this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuffer sb = new StringBuffer("MessageDescriptor{");
+        sb.append("timestamp=").append(timestamp);
+        sb.append(", type='").append(type).append('\'');
+        sb.append(", value=").append(value);
+        sb.append('}');
+        return sb.toString();
+    }
 }

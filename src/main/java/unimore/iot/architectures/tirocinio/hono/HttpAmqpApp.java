@@ -1,5 +1,6 @@
 package unimore.iot.architectures.tirocinio.hono;
 
+import com.google.gson.Gson;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -15,6 +16,11 @@ import org.eclipse.hono.client.amqp.connection.HonoConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
+import unimore.iot.architectures.tirocinio.hono.devices.mqtt.model.MessageDescriptor;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 import static unimore.iot.architectures.tirocinio.hono.HttpProvisioningManagementApp.getDeviceByTenant;
 
@@ -36,8 +42,10 @@ public class HttpAmqpApp {
     private MessageConsumer telemetryConsumer;
 
     private static Buffer temperatureValue;
-    private final String subDeviceId = "device-mqtt-1";
-    private static final String COMMAND_SEND_TEST = "test";
+    private final String subDeviceId = "mqtt-consumer-device";
+    private static final String COMMAND_SEND_TEMPERATURE = "temperature";
+
+    private final List<Double> temperatureValueList;
 
     public HttpAmqpApp() {
         vertx = Vertx.vertx();
@@ -47,6 +55,8 @@ public class HttpAmqpApp {
         config.setUsername(HONO_CLIENT_USER);
         config.setPassword(HONO_CLIENT_PASSWORD);
         config.setReconnectAttempts(RECONNECT_ATTEMPTS);
+
+        temperatureValueList = new ArrayList<>();
     }
 
     public static void main(String[] args) {
@@ -61,10 +71,9 @@ public class HttpAmqpApp {
         amqpApp.connect();
     }
 
-
     private void sendOneWayCommandToDevice(DownstreamMessage<AmqpMessageContext> downstreamMessage) {
         temperatureValue = downstreamMessage.getPayload();
-        client.sendOneWayCommand(HonoConstants.MY_TENANT_ID, subDeviceId, COMMAND_SEND_TEST, temperatureValue)
+        client.sendOneWayCommand(HonoConstants.MY_TENANT_ID, subDeviceId, COMMAND_SEND_TEMPERATURE, temperatureValue)
                 .onSuccess(new Handler<Void>() {
                     @Override
                     public void handle(Void status) {
@@ -88,6 +97,58 @@ public class HttpAmqpApp {
 
 
     /**
+     * Parse the received MQTT messages into a MessageDescriptor object or null in case of error
+     *
+     * @param bufferPayload the Vert.x Buffer
+     * @return the parsed MessageDescriptor object or null in case or error.
+     */
+    private MessageDescriptor parseJson(Buffer bufferPayload) {
+        try {
+            Gson gson = new Gson();
+            return gson.fromJson(String.valueOf(bufferPayload), MessageDescriptor.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * The content-type is required if the PAYLOAD is EMPTY otherwise the message will be simply ignored
+     * application/octet-stream is the default if no content-type is specified in the metadata
+     *
+     * @param dsMessage the downstream message whose payload content-type you want
+     */
+    private void checkDownStreamMessageContentType(DownstreamMessage<AmqpMessageContext> dsMessage) {
+
+        final String octetStream = "application/octet-stream";
+        final String json = "application/json";
+        final String textPlain = "text/plain";
+
+        String contentType = dsMessage.getContentType();
+
+        switch (contentType) {
+            case json -> {
+                MessageDescriptor msgDescriptor = parseJson(dsMessage.getPayload());
+                if (msgDescriptor != null) {
+                    temperatureValueList.add(msgDescriptor.getValue());
+                    System.out.println(getTemperatureValueList());
+                } else {
+                    LOG.info("Message Received - {} Message Received: {}", dsMessage.getDeviceId(), dsMessage.getPayload());
+                }
+            }
+            case textPlain -> {
+                temperatureValueList.add(Double.valueOf(dsMessage.getPayload().toString()));
+                System.out.println(getTemperatureValueList());
+            }
+            default -> {
+                LOG.info("Message with content-type : {} Its value is not considered !", octetStream);
+                LOG.info("Message Received - {} Message Received: {}", dsMessage.getDeviceId(), dsMessage.getPayload());
+            }
+        }
+    }
+
+
+    /**
      * Handler method for a Message from Hono that was received as telemetry data.
      * <p>
      * <p>
@@ -102,6 +163,8 @@ public class HttpAmqpApp {
                 downstreamMessage.getDeviceId(),
                 downstreamMessage.getContentType(),
                 downstreamMessage.getPayload());
+
+        checkDownStreamMessageContentType(downstreamMessage);
     }
 
     private void connect() {
@@ -130,8 +193,7 @@ public class HttpAmqpApp {
                     @Override
                     public void handle(DownstreamMessage<AmqpMessageContext> msg) {
                         handleTelemetryMessage(msg);
-                        sendOneWayCommandToDevice(msg);
-
+                        //sendOneWayCommandToDevice(msg);
                     }
                 }, new Handler<Throwable>() {
                     @Override
@@ -139,5 +201,17 @@ public class HttpAmqpApp {
                         LOG.error("telemetry consumer closed by remote " + t);
                     }
                 }).onSuccess(messageConsumer -> telemetryConsumer = messageConsumer);
+    }
+
+    public List<Double> getTemperatureValueList() {
+        return temperatureValueList;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuffer sb = new StringBuffer("HttpAmqpApp{");
+        sb.append("temperatureValueList=").append(temperatureValueList);
+        sb.append('}');
+        return sb.toString();
     }
 }

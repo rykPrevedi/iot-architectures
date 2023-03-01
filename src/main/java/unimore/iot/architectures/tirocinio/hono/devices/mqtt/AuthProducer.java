@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  *
- * mosquitto_pub -h 192.168.181.17 -p 31724 -u mydevice@mytenant -P mypassword -t telemetry -m '{"temp": 3}'
+ * mosquitto_pub -h 192.168.181.17 -p 30124 -u mydevice@mytenant -P mypassword -t telemetry -m '{"temp": 3}'
  *
  * @author Riccardo Prevedi
  * @created 25/02/2023 - 17:47
