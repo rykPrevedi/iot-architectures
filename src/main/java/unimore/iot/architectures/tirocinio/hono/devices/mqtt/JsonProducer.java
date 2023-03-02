@@ -125,9 +125,9 @@ public class JsonProducer {
     private void connect(MqttConnectOptions options, String clientId) throws MqttException {
         client.connect(options);
         if (client.isConnected()) {
-            LOG.info("[{}] Connects ! to the HONO Mqtt Adapter", clientId);
+            LOG.info("Connected to the HONO Mqtt Adapter ! ClientID: [{}]", clientId);
         } else
-            LOG.error("connection could not be established");
+            LOG.error("Connection could not be established");
     }
 
     private void disconnect(String clientId) throws MqttException {

@@ -4,9 +4,11 @@ import com.google.gson.Gson;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 import kong.unirest.Unirest;
 import org.eclipse.hono.application.client.DownstreamMessage;
 import org.eclipse.hono.application.client.MessageConsumer;
+import org.eclipse.hono.application.client.TimeUntilDisconnectNotification;
 import org.eclipse.hono.application.client.amqp.AmqpApplicationClient;
 import org.eclipse.hono.application.client.amqp.AmqpMessageContext;
 import org.eclipse.hono.application.client.amqp.ProtonBasedApplicationClient;
@@ -19,8 +21,10 @@ import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
 import unimore.iot.architectures.tirocinio.hono.devices.mqtt.model.MessageDescriptor;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.function.Consumer;
 
 import static unimore.iot.architectures.tirocinio.hono.HttpProvisioningManagementApp.getDeviceByTenant;
 
@@ -34,6 +38,8 @@ public class HttpAmqpApp {
     private static final Logger LOG = LoggerFactory.getLogger(HttpAmqpApp.class);
     public static final String HONO_CLIENT_USER = "consumer@HONO";
     public static final String HONO_CLIENT_PASSWORD = "verysecret";
+    //public static final Boolean SEND_ONE_WAY_COMMANDS = true;
+    //private static final String COMMAND_SEND_LIFECYCLE_INFO = "sendLifecycleInfo";
     private static final String deviceDRMApi = "/v1/devices/";
     private static final int RECONNECT_ATTEMPTS = 1;
     private AmqpApplicationClient client;   // An AMQP 1.0 based client that supports Hono's north bound operations
@@ -46,6 +52,20 @@ public class HttpAmqpApp {
     private static final String COMMAND_SEND_TEMPERATURE = "temperature";
 
     private final List<Double> temperatureValueList;
+
+    /**
+     * A map holding a handler to cancel a timer that was started to send commands periodically to a device.
+     * Only affects devices that use a connection oriented protocol like MQTT.
+     */
+    private final Map<String, Handler<Void>> periodicCommandSenderTimerCancelerMap = new HashMap<>();
+
+    /**
+     * A map holding the last reported notification for a device being connected. Will be emptied as soon as the
+     * notification is handled.
+     * Only affects devices that use a connection oriented protocol like MQTT.
+     */
+    private final Map<String, TimeUntilDisconnectNotification> pendingTtdNotification = new HashMap<>();
+
 
     public HttpAmqpApp() {
         vertx = Vertx.vertx();
@@ -71,28 +91,198 @@ public class HttpAmqpApp {
         amqpApp.connect();
     }
 
-    private void sendOneWayCommandToDevice(DownstreamMessage<AmqpMessageContext> downstreamMessage) {
-        temperatureValue = downstreamMessage.getPayload();
-        client.sendOneWayCommand(HonoConstants.MY_TENANT_ID, subDeviceId, COMMAND_SEND_TEMPERATURE, temperatureValue)
-                .onSuccess(new Handler<Void>() {
-                    @Override
-                    public void handle(Void status) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Successfully sent one-way command payload: [{}] ", temperatureValue);
-                        }
-                    }
+    private void connect() {
+        HonoConnection connection = HonoConnection.newConnection(vertx, config);
+        connection
+                .connect()
+                .onSuccess(c -> {
+                    LOG.info("The Client {} is connect to the AMQP messaging router!", HONO_CLIENT_USER);
+                    LOG.info("Ready for Hono operations : Telemetry ... Command ... ");
+                    start(c);
                 })
-                .onFailure(new Handler<Throwable>() {
+                .onFailure(t -> LOG.error(" {} ", t.getMessage()));
+    }
+
+    private void start(HonoConnection connection) {
+        // ProtonBasedApplicationClient Implements AmqpApplicationClient.
+        // A vertx-proton based client that supports Hono's north bound operations to send commands and receive telemetry, event and command response messages.
+        client = new ProtonBasedApplicationClient(connection);
+        createTelemetryConsumer();
+        createEventConsumer();
+
+    }
+
+    /**
+     * Only to handle the Time Until Disconnect Notification
+     */
+    private void createEventConsumer() {
+        client.createEventConsumer(HonoConstants.MY_TENANT_ID,
+                        msg -> {
+                            // handle command readiness notification
+                            msg.getTimeUntilDisconnectNotification().ifPresent(this::handleCommandReadinessNotification);
+                        },
+                        t -> LOG.error("telemetry consumer closed by remote " + t))
+                .onSuccess(messageConsumer -> telemetryConsumer = messageConsumer);
+    }
+
+
+    private void createTelemetryConsumer() {
+        client.createTelemetryConsumer(HonoConstants.MY_TENANT_ID,
+                new Handler<DownstreamMessage<AmqpMessageContext>>() {
+                    @Override
+                    public void handle(DownstreamMessage<AmqpMessageContext> msg) {
+                        msg.getTimeUntilDisconnectNotification().ifPresent(new Consumer<TimeUntilDisconnectNotification>() {
+                            @Override
+                            public void accept(TimeUntilDisconnectNotification notification) {
+                                handleCommandReadinessNotification(notification);
+                            }
+                        });
+                        handleTelemetryMessage(msg);
+                    }
+                }, new Handler<Throwable>() {
                     @Override
                     public void handle(Throwable t) {
-                        if (t instanceof ServiceInvocationException) {
-                            int errorCode = ((ServiceInvocationException) t).getErrorCode();
-                            LOG.debug("One-way command was replied with error code [{}].", errorCode);
-                        } else {
-                            LOG.debug("Could not send one-way command : {}.", t.getMessage());
-                        }
+                        LOG.error("telemetry consumer closed by remote " + t);
+                    }
+                }).onSuccess(messageConsumer -> telemetryConsumer = messageConsumer);
+    }
+
+
+    /**
+     * Handler method for a device ready for command notification (by an explicit event or contained implicitly in another message).
+     * For notifications with a positive ttd value (as usual for request-response protocols),
+     * the code creates a simple command in JSON.
+     * For notifications signaling a connection oriented protocol,
+     * the handling is delegated to {@link #handlePermanentlyConnectedCommandReadinessNotification(TimeUntilDisconnectNotification)}.
+     *
+     * @param notification The notification containing the tenantId, deviceId and the Instant (that defines until when this notification is valid).
+     */
+    private void handleCommandReadinessNotification(TimeUntilDisconnectNotification notification) {
+        if (notification.getTtd() <= 0) {
+            handlePermanentlyConnectedCommandReadinessNotification(notification);
+        } else {
+            LOG.info("Device is ready to receive a command : [{}].", notification);
+            sendCommand(notification);
+        }
+    }
+
+    private void handlePermanentlyConnectedCommandReadinessNotification(TimeUntilDisconnectNotification notification) {
+
+        String keyForDevice = notification.getTenantAndDeviceId();
+
+        TimeUntilDisconnectNotification previousNotification = pendingTtdNotification.get(keyForDevice);
+        if (previousNotification != null) {
+            if (notification.getCreationTime().isAfter(previousNotification.getCreationTime())) {
+                LOG.info("Set new ttd value [{}] of notification for [{}]",
+                        notification.getTtd(), notification.getTenantAndDeviceId());
+                pendingTtdNotification.put(keyForDevice, notification);
+            } else {
+                LOG.trace("Received notification for [{}] that was already superseded by newer [{}]",
+                        notification, previousNotification);
+            }
+        } else {
+            pendingTtdNotification.put(keyForDevice, notification);
+            // there was no notification available already, so start a handler now
+            vertx.setTimer(1000, timerId -> {
+                LOG.info("Handle device notification for: [{}].", notification.getTenantAndDeviceId());
+                // now take the notification from the pending map and handle it
+                TimeUntilDisconnectNotification notificationToHandle = pendingTtdNotification.remove(keyForDevice);
+                if (notificationToHandle != null) {
+                    if (notificationToHandle.getTtd() == -1) {
+                        LOG.info("Device notified as being ready to receive a command until further notice : [{}].", notificationToHandle);
+
+                        // cancel a still existing timer for this device (if found)
+                        cancelPeriodicCommandSender(notification);
+                        // immediately send the first command
+                        sendCommand(notificationToHandle);
+
+                        // for devices that stay connected, start a periodic timer now that repeatedly sends a command
+                        // to the device
+                        vertx.setPeriodic(
+                                (long) HonoConstants.COMMAND_INTERVAL_FOR_DEVICES_CONNECTED_WITH_UNLIMITED_EXPIRY * 1000,
+                                id -> {
+                                    sendCommand(notificationToHandle);
+                                    // register a canceler for this timer directly after it was created
+                                    setPeriodicCommandSenderTimerCanceler(id, notification);
+                                });
+                    } else {
+                        LOG.info("Device notified as not being ready to receive a command (anymore) : [{}].", notification);
+                        cancelPeriodicCommandSender(notificationToHandle);
+                        LOG.debug("Device will not receive further commands : [{}].", notification.getTenantAndDeviceId());
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Sends a command to the device for which a {@link TimeUntilDisconnectNotification} was received.
+     *
+     * @param notification The notification that was received for the device.
+     */
+    private void sendCommand(TimeUntilDisconnectNotification notification) {
+        sendOneWayCommandToAdapter(notification.getTenantId(), notification.getDeviceId(), notification);
+    }
+
+    private void cancelPeriodicCommandSender(TimeUntilDisconnectNotification notification) {
+        if (isPeriodicCommandSenderActiveForDevice(notification)) {
+            LOG.debug("Cancelling periodic sender for {}", notification.getTenantAndDeviceId());
+            periodicCommandSenderTimerCancelerMap.get(notification.getTenantAndDeviceId()).handle(null);
+        } else {
+            LOG.debug("Wanted to cancel periodic sender for {}, but could not find one",
+                    notification.getTenantAndDeviceId());
+        }
+    }
+
+    private void setPeriodicCommandSenderTimerCanceler(Long timerId, TimeUntilDisconnectNotification ttdNotification) {
+        this.periodicCommandSenderTimerCancelerMap.put(ttdNotification.getTenantAndDeviceId(), v -> {
+            vertx.cancelTimer(timerId);
+            periodicCommandSenderTimerCancelerMap.remove(ttdNotification.getTenantAndDeviceId());
+        });
+    }
+
+    private boolean isPeriodicCommandSenderActiveForDevice(TimeUntilDisconnectNotification notification) {
+        return periodicCommandSenderTimerCancelerMap.containsKey(notification.getTenantAndDeviceId());
+    }
+
+
+    private void sendOneWayCommandToAdapter(String tenantId, String deviceId, TimeUntilDisconnectNotification ttdNotification) {
+
+        Buffer commandBuffer = buildOneWayCommandPayload();
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Sending one-way command [{}] to [{}].",
+                    COMMAND_SEND_TEMPERATURE,
+                    ttdNotification.getTenantAndDeviceId());
+        }
+
+        client.sendOneWayCommand(tenantId, deviceId, COMMAND_SEND_TEMPERATURE, commandBuffer)
+                .onSuccess(status -> {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Successfully send one-way command payload: [{}] and receive status [{}].",
+                                commandBuffer.toString(), status);
+                    }
+                })
+                .onFailure(t -> {
+                    if (t instanceof ServiceInvocationException) {
+                        int errorCode = ((ServiceInvocationException) t).getErrorCode();
+                        LOG.debug("One-way command was replied with error code [{}].", errorCode);
+                    } else {
+                        LOG.debug("Could not send one-way command : {}.", t.getMessage());
                     }
                 });
+
+    }
+
+    private Buffer buildOneWayCommandPayload() {
+        JsonObject jsonCmd = new JsonObject().put("temperature avg", "test");
+        return Buffer.buffer(jsonCmd.encodePrettily());
+    }
+
+    private double getTemperatureAverage() {
+        return temperatureValueList.stream()
+                .mapToDouble(value -> value)
+                .average().orElse(0);
     }
 
 
@@ -113,7 +303,8 @@ public class HttpAmqpApp {
     }
 
     /**
-     * The content-type is required if the PAYLOAD is EMPTY otherwise the message will be simply ignored
+     * ATTENTION:
+     * The content-type is required if the PAYLOAD is EMPTY otherwise the message will be simply ignored by Hono
      * application/octet-stream is the default if no content-type is specified in the metadata
      *
      * @param dsMessage the downstream message whose payload content-type you want
@@ -124,24 +315,22 @@ public class HttpAmqpApp {
         final String json = "application/json";
         final String textPlain = "text/plain";
 
-        String contentType = dsMessage.getContentType();
-
-        switch (contentType) {
+        switch (dsMessage.getContentType()) {
             case json -> {
                 MessageDescriptor msgDescriptor = parseJson(dsMessage.getPayload());
                 if (msgDescriptor != null) {
                     temperatureValueList.add(msgDescriptor.getValue());
-                    System.out.println(getTemperatureValueList());
+                    //System.out.println(getTemperatureValueList());
                 } else {
                     LOG.info("Message Received - {} Message Received: {}", dsMessage.getDeviceId(), dsMessage.getPayload());
                 }
             }
             case textPlain -> {
                 temperatureValueList.add(Double.valueOf(dsMessage.getPayload().toString()));
-                System.out.println(getTemperatureValueList());
+                //System.out.println(getTemperatureValueList());
             }
             default -> {
-                LOG.info("Message with content-type : {} Its value is not considered !", octetStream);
+                LOG.info("content-type : {} the message value is NOT considered !", octetStream);
                 LOG.info("Message Received - {} Message Received: {}", dsMessage.getDeviceId(), dsMessage.getPayload());
             }
         }
@@ -167,41 +356,6 @@ public class HttpAmqpApp {
         checkDownStreamMessageContentType(downstreamMessage);
     }
 
-    private void connect() {
-        HonoConnection connection = HonoConnection.newConnection(vertx, config);
-        connection
-                .connect()
-                .onSuccess(c -> {
-                    LOG.info("The Client {} is connect to the AMQP messaging router!", HONO_CLIENT_USER);
-                    LOG.info("Ready for Hono operations : Telemetry ... Command ... ");
-                    start(c);
-                })
-                .onFailure(t -> LOG.error(" {} ", t.getMessage()));
-    }
-
-    private void start(HonoConnection connection) {
-        // ProtonBasedApplicationClient Implements AmqpApplicationClient.
-        // A vertx-proton based client that supports Hono's north bound operations to send commands and receive telemetry, event and command response messages.
-        client = new ProtonBasedApplicationClient(connection);
-        createTelemetryConsumer();
-    }
-
-
-    private void createTelemetryConsumer() {
-        client.createTelemetryConsumer(HonoConstants.MY_TENANT_ID,
-                new Handler<DownstreamMessage<AmqpMessageContext>>() {
-                    @Override
-                    public void handle(DownstreamMessage<AmqpMessageContext> msg) {
-                        handleTelemetryMessage(msg);
-                        //sendOneWayCommandToDevice(msg);
-                    }
-                }, new Handler<Throwable>() {
-                    @Override
-                    public void handle(Throwable t) {
-                        LOG.error("telemetry consumer closed by remote " + t);
-                    }
-                }).onSuccess(messageConsumer -> telemetryConsumer = messageConsumer);
-    }
 
     public List<Double> getTemperatureValueList() {
         return temperatureValueList;
