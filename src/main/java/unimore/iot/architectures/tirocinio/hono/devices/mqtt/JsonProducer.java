@@ -28,7 +28,7 @@ public class JsonProducer {
     private static final String TOPIC = "telemetry";
     private static final String METADATA = "/?content-type=application%2Fjson";
     private static final int QOS = 0;
-    private static final int MESSAGE_COUNT = 10;
+    private static final int MESSAGE_COUNT = 100;
     private static IMqttClient client;
     private static MqttConnectOptions options;
 
