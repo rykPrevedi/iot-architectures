@@ -15,9 +15,15 @@
         <logback.version>1.4.5</logback.version>
         <paho.version>1.2.5</paho.version>
         <application.amqp.version>2.1.1</application.amqp.version>
+        <vertx.version>4.3.8</vertx.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-core</artifactId>
+            <version>${vertx.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.eclipse.hono</groupId>
             <artifactId>hono-client-application-amqp</artifactId>
