@@ -1,4 +1,4 @@
-package unimore.iot.architectures.tirocinio.hono;
+package unimore.iot.architectures.tirocinio.hono.businessapplications;
 
 import com.google.gson.Gson;
 import io.vertx.core.Handler;
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static unimore.iot.architectures.tirocinio.hono.HttpProvisioningManagementApp.getDeviceByTenant;
+import static unimore.iot.architectures.tirocinio.hono.businessapplications.HttpProvisioningManagementApp.getDeviceByTenant;
 
 /**
  * @author Riccardo Prevedi
@@ -44,8 +44,6 @@ public class HttpAmqpApp {
     private final Vertx vertx;
     private final ClientConfigProperties config;
     private MessageConsumer telemetryConsumer;
-    //private static Buffer temperatureValue;
-    //private final String subDeviceId = "mqtt-consumer-device";
     private static final String COMMAND_SEND_TEMPERATURE = "temperature";
 
     private final List<Double> temperatureValueList;
@@ -111,7 +109,8 @@ public class HttpAmqpApp {
     }
 
     /**
-     * Only to handle the Time Until Disconnect Notification
+     * The app try to connect to the specific AMQP 1.0 Endpoint event/TENANT
+     * Only to handle the Time Until Disconnect Notification sending through an Event type message
      */
     private void createEventConsumer() {
         client.createEventConsumer(HonoConstants.MY_TENANT_ID,
@@ -124,6 +123,9 @@ public class HttpAmqpApp {
     }
 
 
+    /**
+     * The app try to connect to the specific AMQP 1.0 Endpoint telemetry/TENANT
+     */
     private void createTelemetryConsumer() {
         client.createTelemetryConsumer(HonoConstants.MY_TENANT_ID,
                 new Handler<DownstreamMessage<AmqpMessageContext>>() {
@@ -258,7 +260,7 @@ public class HttpAmqpApp {
                 .onSuccess(status -> {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Successfully send one-way command payload: [{}] and receive status [{}].",
-                                commandBuffer.toString(), status);
+                                commandBuffer, status);
                     }
                 })
                 .onFailure(t -> {
@@ -318,15 +320,11 @@ public class HttpAmqpApp {
                 MessageDescriptor msgDescriptor = parseJson(dsMessage.getPayload());
                 if (msgDescriptor != null) {
                     temperatureValueList.add(msgDescriptor.getValue());
-                    //System.out.println(getTemperatureValueList());
                 } else {
                     LOG.info("Message Received - {} Message Received: {}", dsMessage.getDeviceId(), dsMessage.getPayload());
                 }
             }
-            case textPlain -> {
-                temperatureValueList.add(Double.valueOf(dsMessage.getPayload().toString()));
-                //System.out.println(getTemperatureValueList());
-            }
+            case textPlain -> temperatureValueList.add(Double.valueOf(dsMessage.getPayload().toString()));
             default -> {
                 LOG.info("content-type : {} the message value is NOT considered !", octetStream);
                 LOG.info("Message Received - {} Message Received: {}", dsMessage.getDeviceId(), dsMessage.getPayload());
@@ -361,9 +359,8 @@ public class HttpAmqpApp {
 
     @Override
     public String toString() {
-        final StringBuffer sb = new StringBuffer("HttpAmqpApp{");
-        sb.append("temperatureValueList=").append(temperatureValueList);
-        sb.append('}');
-        return sb.toString();
+        String sb = "HttpAmqpApp{" + "temperatureValueList=" + temperatureValueList +
+                '}';
+        return sb;
     }
 }
