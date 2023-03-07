@@ -1,0 +1,34 @@
+{
+  "enabled": true,
+  "alias": "test-first",
+  "ext": {
+    "messaging-type": "amqp"
+  },
+  "adapters": [
+    {
+      "type": "hono-mqtt",
+      "enabled": true,
+      "device-authentication-required": false
+    },
+    {
+      "type": "hono-http",
+      "enabled": true,
+      "device-authentication-required": true
+    },
+    {
+      "type": "hono-coap",
+      "enabled": false,
+      "device-authentication-required": true
+    },
+    {
+      "type": "hono-lora",
+      "enabled": false,
+      "device-authentication-required": true
+    },
+    {
+      "type": "hono-amqp",
+      "enabled": true,
+      "device-authentication-required": false
+    }
+  ]
+}
