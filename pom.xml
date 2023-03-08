@@ -21,8 +21,8 @@
     <dependencies>
         <dependency>
             <groupId>org.eclipse.hono</groupId>
-            <artifactId>hono-client-adapter-amqp</artifactId>
-            <version>1.8.3</version>
+            <artifactId>hono-client-device-amqp</artifactId>
+            <version>2.1.1</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
