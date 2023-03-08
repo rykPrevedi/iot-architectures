@@ -1,6 +1,5 @@
 {
   "enabled": true,
-  "alias": "test-first",
   "ext": {
     "messaging-type": "amqp"
   },
@@ -8,7 +7,7 @@
     {
       "type": "hono-mqtt",
       "enabled": true,
-      "device-authentication-required": false
+      "device-authentication-required": true
     },
     {
       "type": "hono-http",
