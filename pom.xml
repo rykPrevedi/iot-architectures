@@ -20,6 +20,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.eclipse.hono</groupId>
+            <artifactId>hono-client-adapter-amqp</artifactId>
+            <version>1.8.3</version>
+        </dependency>
+        <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
             <version>${vertx.version}</version>
