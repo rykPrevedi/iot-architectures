@@ -1,11 +1,13 @@
-package unimore.iot.architectures.tirocinio.hono;
+package unimore.iot.architectures.tirocinio.hono.businessapplications;
 
-import kong.unirest.*;
+import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
 
-import java.util.function.Consumer;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 
 /**
@@ -34,60 +36,79 @@ public class HttpProvisioningManagementApp {
     private static final String mqttConsumerDeviceId = "mqtt-consumer-device";
     private static final String mqttConsumerPassword = "mqttconsumerpassword";
     private static final String mqttConsumerAuthId = "mqttconsumer";
+    private static final String provamqtt = "test";
+
 
     public HttpProvisioningManagementApp() {
     }
 
     public static void main(String[] args) {
-        String baseUrl = String.format("http://%s:%d",  // http://192.168.181.17:31735
+        String baseUrl = String.format("http://%s:%d",  // http://192.168.181.17:30274
                 HonoConstants.HONO_HOST,
                 HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
         Unirest.config().defaultBaseUrl(baseUrl);
 
-        //deleteTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
-        //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
-        //deleteDeviceFromTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
         //createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
         //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
         //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
         //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
         //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId, mqttJsonAuthId, mqttJsonPassword);
-        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId);
-        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId, mqttConsumerAuthId, mqttConsumerPassword);
+        //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId);
+        //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId, mqttConsumerAuthId, mqttConsumerPassword);
+        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, provamqtt);
+
+    }
 
 
+    /**
+     * Setting up the tenant properties with a specified json file
+     *
+     * @param configurationFilePath the json file path
+     */
+    public static void updateTenant(String tenantId, String configurationFilePath) throws IOException {
+        Unirest
+                .put("/v1/tenants/" + tenantId)
+                .header("content-type", "application/json")
+                .body(new String(Files.readAllBytes(Paths.get(configurationFilePath))))
+                .asJson()
+                .ifSuccess(httpResponse -> LOG.info("Tenant with ID: {} Updated --> Status: {} {}", tenantId, httpResponse.getStatus(), httpResponse.getStatusText()))
+                .ifFailure(httpResponse -> {
+                    LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    LOG.error("{}", httpResponse.getBody().toPrettyString());
+                });
+    }
+
+    /**
+     * Get all the registered tenants
+     */
+    public static void getTenants() {
+        Unirest
+                .get("/v1/tenants/")
+                .header("accept", "application/json")
+                .asJson()
+                .ifSuccess(httpResponse -> LOG.info("All Tenant created:\n{}", httpResponse.getBody().toPrettyString()))
+                .ifFailure(httpResponse -> {
+                    LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    LOG.error("{}", httpResponse.getBody().toPrettyString());
+                });
     }
 
 
     /**
      * Search devices for a tenant with optional filters, paging and sorting options.
      *
-     * @param resourcePath  "/v1/devices/"
-     * @param tenantId      "myTenant"
+     * @param resourcePath "/v1/devices/"
+     * @param tenantId     "myTenant"
      */
-    public static void getDeviceByTenant(String resourcePath, String tenantId){
+    public static void getDeviceByTenant(String resourcePath, String tenantId) {
         Unirest
                 .get(resourcePath + HonoConstants.MY_TENANT_ID)
                 .header("accept", "application/json")
                 .asJson()
-                .ifSuccess(new Consumer<HttpResponse<JsonNode>>() {
-                    @Override
-                    public void accept(HttpResponse<JsonNode> httpResponse) {
-                        LOG.info("Device IDs that belong to the tenant - {}:\n{}", tenantId, httpResponse.getBody().toPrettyString());
-                    }
-                })
-                .ifFailure(new Consumer<HttpResponse<JsonNode>>() {
-                    @Override
-                    public void accept(HttpResponse<JsonNode> httpResponse) {
-                        LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
-                        httpResponse.getParsingError().ifPresent(new Consumer<UnirestParsingException>() {
-                            @Override
-                            public void accept(UnirestParsingException exception) {
-                                LOG.error("Parsing Exception " + exception);
-                                LOG .error("Original Body: {}", exception.getOriginalBody());
-                            }
-                        });
-                    }
+                .ifSuccess(httpResponse -> LOG.info("Device IDs that belong to the tenant - {}:\n{}", tenantId, httpResponse.getBody().toPrettyString()))
+                .ifFailure(httpResponse -> {
+                    LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    LOG.error("{}", httpResponse.getBody().toPrettyString());
                 });
     }
 
@@ -121,10 +142,7 @@ public class HttpProvisioningManagementApp {
                 .ifSuccess(httpResponse -> LOG.info("Password is Set !"))
                 .ifFailure(httpResponse -> {
                     LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
-                    httpResponse.getParsingError().ifPresent(exception -> {
-                        LOG.error("Parsing Exception " + exception);
-                        LOG.error("Original Body: {}", exception.getOriginalBody());
-                    });
+                    LOG.error("{}", httpResponse.getBody().toPrettyString());
                 });
     }
 
@@ -153,7 +171,8 @@ public class HttpProvisioningManagementApp {
     }
 
     /**
-     * Create a new tenant with "myTenant" as tenant-id
+     * Create a new tenant with a unique alias. The alias MUST be unique among all tenants
+     * and MUST consist of only lower case letters, digits and hyphens
      * <p>
      * <p>
      * curl -i -X POST -H "content-type: application/json" --data-binary '{
@@ -165,7 +184,7 @@ public class HttpProvisioningManagementApp {
      * @param resourcePath "/v1/tenants/"
      * @param tenantId     "myTenant"
      */
-    private static void createTenant(String resourcePath, String tenantId) {
+    private static void createTenantWithAlias(String resourcePath, String tenantId) {
         Unirest
                 .post(resourcePath + tenantId)
                 .header("content-type", "application/json")
@@ -174,10 +193,7 @@ public class HttpProvisioningManagementApp {
                 .ifSuccess(httpResponse -> LOG.info("Registered tenant: {}", HonoConstants.MY_TENANT_ID))
                 .ifFailure(httpResponse -> {
                     LOG.error("Oh No, Status: {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
-                    httpResponse.getParsingError().ifPresent(exception -> {
-                        LOG.error("Parsing exception: " + exception);
-                        LOG.error("Original body: {}", exception.getOriginalBody());
-                    });
+                    LOG.error("{}", httpResponse.getBody().toPrettyString());
                 });
     }
 
@@ -222,7 +238,8 @@ public class HttpProvisioningManagementApp {
                 .post(resourcePath + tenantId + "/" + deviceId)
                 .header("content-type", "application/json")
                 .asEmpty()
-                .ifSuccess(httpResponse -> LOG.info("Registered device: {}", deviceId)).ifFailure(httpResponse -> {
+                .ifSuccess(httpResponse -> LOG.info("Registered device: {}", deviceId))
+                .ifFailure(httpResponse -> {
                     LOG.error("Oh No, Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
                     httpResponse.getParsingError().ifPresent(exception -> {
                         LOG.error("Parsing Exception " + exception);

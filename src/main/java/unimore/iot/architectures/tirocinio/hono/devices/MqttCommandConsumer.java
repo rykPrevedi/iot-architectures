@@ -36,7 +36,7 @@ public class MqttCommandConsumer {
     private static MqttConnectOptions options;
 
     private final Vertx vertx;
-    private static final long DELAY_FOR_DISCONNECTION = 50 * 1000; // millisecond
+    private static final long DELAY_FOR_DISCONNECTION = 300 * 1000; // millisecond, 5 min
 
     public MqttCommandConsumer() {
         vertx = Vertx.vertx();
@@ -98,6 +98,7 @@ public class MqttCommandConsumer {
             client.disconnect();
             client.close();
             LOG.info("[{}] Disconnects", clientId);
+            System.exit(1);
         } catch (MqttException e) {
             e.printStackTrace();
         }
