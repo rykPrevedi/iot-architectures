@@ -36,7 +36,12 @@ public class HttpProvisioningManagementApp {
     private static final String mqttConsumerDeviceId = "mqtt-consumer-device";
     private static final String mqttConsumerPassword = "mqttconsumerpassword";
     private static final String mqttConsumerAuthId = "mqttconsumer";
-    private static final String provamqtt = "test";
+
+    // ------------------------------------------------------------------------
+
+    private static final String amqpDeviceId = "amqp-sensor-device";
+    private static final String amqpAuthId = "amqpconsumer";
+    private static final String amqpPassword = "amqpconsumerpassword";
 
 
     public HttpProvisioningManagementApp() {
@@ -55,8 +60,8 @@ public class HttpProvisioningManagementApp {
         //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId, mqttJsonAuthId, mqttJsonPassword);
         //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId);
         //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId, mqttConsumerAuthId, mqttConsumerPassword);
-        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, provamqtt);
-
+        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, amqpDeviceId);
+        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, amqpDeviceId, amqpAuthId, amqpPassword);
     }
 
 
