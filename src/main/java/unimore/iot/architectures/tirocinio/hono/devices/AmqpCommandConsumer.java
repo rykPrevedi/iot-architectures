@@ -19,8 +19,8 @@ import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
 public class AmqpCommandConsumer {
     private static final Logger LOG = LoggerFactory.getLogger(AmqpCommandConsumer.class);
     private static final String TENANT_ID = "mytenant";
-    private static final String AUTH_ID = "amqpconsumer";
-    private static final String PASSWORD = "amqpconsumerpassword";
+    private static final String AUTH_ID = "device-amqp";
+    private static final String PASSWORD = "hono-secret";
     private static final int RECONNECT_ATTEMPTS = 5;
 
     // A Vert.x based client for interacting with Hono's AMPQ adapter

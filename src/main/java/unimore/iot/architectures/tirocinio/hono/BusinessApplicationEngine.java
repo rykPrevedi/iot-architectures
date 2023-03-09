@@ -45,6 +45,5 @@ public class BusinessApplicationEngine {
         TemperatureNorthboundApp temperatureNorthboundApp = new TemperatureNorthboundApp();
         temperatureNorthboundApp.setTenant(tenant);
         temperatureNorthboundApp.consumeData();
-
     }
 }

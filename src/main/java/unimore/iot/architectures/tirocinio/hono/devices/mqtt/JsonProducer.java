@@ -23,8 +23,9 @@ import java.util.UUID;
 
 public class JsonProducer {
     private static final Logger LOG = LoggerFactory.getLogger(JsonProducer.class);
-    private static final String MQTT_USERNAME = "mqttjson@mytenant";
-    private static final String MQTT_PASSWORD = "mqttjsonpassword";
+    private static final String TENANT_ID = "mytenant";
+    private static final String AUTH_ID = "device-mqtt";
+    private static final String PASSWORD = "hono-secret";
     private static final String TOPIC = "telemetry";
     private static final String METADATA = "/?content-type=application%2Fjson";
     private static final int QOS = 0;
@@ -34,8 +35,8 @@ public class JsonProducer {
 
     public JsonProducer() {
         options = new MqttConnectOptions();
-        options.setUserName(MQTT_USERNAME);
-        options.setPassword(MQTT_PASSWORD.toCharArray());
+        options.setUserName(AUTH_ID + "@" + TENANT_ID); // mqttjson@mytenant
+        options.setPassword(PASSWORD.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
         options.setConnectionTimeout(10);   // maximum seconds for the connection establishment

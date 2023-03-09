@@ -27,21 +27,18 @@ public class HttpProvisioningManagementApp {
     private static final String tenantDRMApi = "/v1/tenants/";
     private static final String deviceDRMApi = "/v1/devices/";
     private static final String credentialDRMApi = "/v1/credentials/";
-    private static final String myDeviceId = "mqtt-auth-device";
-    private static final String myPassword = "mypassword";
-    private static final String myAuthId = "mydevice";
-    private static final String mqttJsonDeviceId = "mqtt-json-device";
-    private static final String mqttJsonPassword = "mqttjsonpassword";
-    private static final String mqttJsonAuthId = "mqttjson";
-    private static final String mqttConsumerDeviceId = "mqtt-consumer-device";
-    private static final String mqttConsumerPassword = "mqttconsumerpassword";
-    private static final String mqttConsumerAuthId = "mqttconsumer";
 
     // ------------------------------------------------------------------------
 
-    private static final String amqpDeviceId = "amqp-sensor-device";
-    private static final String amqpAuthId = "amqpconsumer";
-    private static final String amqpPassword = "amqpconsumerpassword";
+    private static final String amqpDeviceId = "amqp-device";
+    private static final String amqpAuthId = "device-amqp";
+    private static final String amqpPassword = "hono-secret";
+
+    // ------------------------------------------------------------------------
+
+    private static final String mqttDeviceId = "mqtt-device";
+    private static final String mqttAuthId = "device-mqtt";
+    private static final String mqttPassword = "hono-secret";
 
 
     public HttpProvisioningManagementApp() {
@@ -54,12 +51,6 @@ public class HttpProvisioningManagementApp {
         Unirest.config().defaultBaseUrl(baseUrl);
 
         //createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
-        //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId);
-        //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, myDeviceId, myAuthId, myPassword);
-        //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId);
-        //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttJsonDeviceId, mqttJsonAuthId, mqttJsonPassword);
-        //addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId);
-        //setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, mqttConsumerDeviceId, mqttConsumerAuthId, mqttConsumerPassword);
         addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, amqpDeviceId);
         setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, amqpDeviceId, amqpAuthId, amqpPassword);
     }

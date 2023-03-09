@@ -21,8 +21,9 @@ import java.util.UUID;
 public class AuthProducer {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthProducer.class);
-    private static final String MQTT_USERNAME = "mydevice@mytenant";
-    private static final String MQTT_PASSWORD = "mypassword";
+    private static final String TENANT_ID = "mytenant";
+    private static final String AUTH_ID = "device-mqtt";
+    private static final String PASSWORD = "hono-secret";
     private static final String TOPIC = "telemetry";    // telemetry/mytenant/mydevice
     private static final String METADATA = "/?content-type=text%2Fplain";
     private static final int QOS = 0;
@@ -32,8 +33,8 @@ public class AuthProducer {
 
     public AuthProducer() {
         options = new MqttConnectOptions();
-        options.setUserName(MQTT_USERNAME);
-        options.setPassword(MQTT_PASSWORD.toCharArray());
+        options.setUserName(AUTH_ID + "@" + TENANT_ID);
+        options.setPassword(PASSWORD.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
         options.setConnectionTimeout(10);   // maximum seconds for the connection establishment

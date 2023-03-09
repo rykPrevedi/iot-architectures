@@ -29,8 +29,8 @@ import java.util.UUID;
 public class MqttCommandConsumer {
     private static final Logger LOG = LoggerFactory.getLogger(MqttCommandConsumer.class);
     private static final String TENANT_ID = "mytenant";
-    private static final String AUTH_ID = "mqttconsumer";
-    private static final String MQTT_PASSWORD = "mqttconsumerpassword";
+    private static final String AUTH_ID = "device-mqtt";
+    private static final String MQTT_PASSWORD = "hono-secret";
     private static final String TOPIC = "command///req/#";
     private static final int QOS = 0;
     private static IMqttClient client;
