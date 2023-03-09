@@ -30,18 +30,23 @@ import java.util.concurrent.CompletionException;
 
 
 /**
- * Receive temperature data from devices belonging to a tenant
- * that connect to the Telemetry topic and send both in Json and text-plain format.
- * Calculate the average of all temperature values received,
- * Using device notifications, the BA automatically sends commands with average temperature to subscribed devices
+ * This Northbound Business Application allows to
+ *
+ * 1. Receive temperature data from devices belonging to a tenant automatically configured in
+ *    {@link unimore.iot.architectures.tirocinio.hono.BusinessApplicationEngine}
+ * 2. Calculate the average of all temperature values received both in Json and text-plain format
+ *    while octet-stream will be simply ignored
+ * 3. Using device notifications automatically sends commands containing the average temperature
+ *    to all devices that subscribe to the command topic.
+ *
  *
  * @author Riccardo Prevedi
  * @created 05/03/2023 - 18:45
  * @project architectures-iot
  */
 
-public class AvgTemperatureNorthboundApp {
-    private static final Logger LOG = LoggerFactory.getLogger(AvgTemperatureNorthboundApp.class);
+public class TemperatureNorthboundApp {
+    private static final Logger LOG = LoggerFactory.getLogger(TemperatureNorthboundApp.class);
     private static final String HONO_CLIENT_USER = "consumer@HONO";
     private static final String HONO_CLIENT_PASSWORD = "verysecret";
     private static final int RECONNECT_ATTEMPTS = 2;
@@ -73,7 +78,7 @@ public class AvgTemperatureNorthboundApp {
     private final Map<String, TimeUntilDisconnectNotification> pendingTtdNotification = new HashMap<>();
 
 
-    public AvgTemperatureNorthboundApp() {
+    public TemperatureNorthboundApp() {
         client = createApplicationClient();
     }
 
