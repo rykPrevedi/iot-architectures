@@ -2,7 +2,7 @@ package unimore.iot.architectures.tirocinio.hono;
 
 import kong.unirest.Unirest;
 import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
-import unimore.iot.architectures.tirocinio.hono.businessapplications.AvgTemperatureNorthboundApp;
+import unimore.iot.architectures.tirocinio.hono.businessapplications.TemperatureNorthboundApp;
 
 import java.io.IOException;
 
@@ -10,13 +10,15 @@ import static unimore.iot.architectures.tirocinio.hono.businessapplications.Http
 import static unimore.iot.architectures.tirocinio.hono.businessapplications.HttpProvisioningManagementApp.updateTenant;
 
 /**
+ * This class instantiates all Business Applications and runs their tenant set-up
+ *
  * @author Riccardo Prevedi
  * @created 06/03/2023 - 09:00
  * @project architectures-iot
  */
 
 public class BusinessApplicationEngine {
-    private static final String CONFIGURATION_FILE_PATH = "src/main/java/unimore/iot/architectures/tirocinio/hono/firstTenantSetup.json";
+    private static final String CONFIGURATION_FILE_PATH = "src/main/java/unimore/iot/architectures/tirocinio/hono/tenantsetup.json";
 
 
     public static void main(String[] args) {
@@ -40,9 +42,9 @@ public class BusinessApplicationEngine {
             e.printStackTrace();
         }
 
-        AvgTemperatureNorthboundApp northboundApp = new AvgTemperatureNorthboundApp();
-        northboundApp.setTenant(tenant);
-        northboundApp.consumeData();
+        TemperatureNorthboundApp temperatureNorthboundApp = new TemperatureNorthboundApp();
+        temperatureNorthboundApp.setTenant(tenant);
+        temperatureNorthboundApp.consumeData();
 
     }
 }
