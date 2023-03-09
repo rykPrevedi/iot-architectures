@@ -18,11 +18,10 @@ public class HonoConstants {
      * Device registry port where applications can register the device and tenant and set the device password.
      * Through the Device Registry Management API
      */
-    // (eclipse-hono-service-device-registry-ext)
+    // (service name: eclipse-hono-service-device-registry-ext)
     // external Port where the endpoint can be reached via the HTTP protocol communication
     public static final int HONO_HTTP_DEVICE_REGISTRY_PORT = 30274;
 
-    // (eclipse-hono-service-device-registry-ext)
     // external Port where the endpoint can be reached via the HTTPS protocol communication
     public static final int HONO_HTTPS_DEVICE_REGISTRY_PORT = 30054;
 
@@ -32,11 +31,10 @@ public class HonoConstants {
      * Port of the AMQP network where consumers can receive data (in the standard setup this is the port
      * of the qdrouter).
      */
-    // (eclipse-hono-dispatch-router-ext)
+    // (service name: eclipse-hono-dispatch-router-ext)
     // external Port where the endpoint can be reached via the AMQP protocol communication
     public static final int HONO_AMQP_CONSUMER_PORT = 30546;
 
-    // (eclipse-hono-dispatch-router-ext)
     // external Port where the endpoint can be reached via the AMQPS protocol communication
     public static final int HONO_AMQPS_CONSUMER_PORT = 30974;
 
@@ -45,13 +43,25 @@ public class HonoConstants {
      *
      * Port of the MQTT protocol adapter where the device can Publish messages or Subscribe to a specific topic
      */
-    // (eclipse-hono-adapter-mqtt)
+    // (service name: eclipse-hono-adapter-mqtt)
     // external Port where the endpoint can be reached via the MQTT protocol communication
     public static final int HONO_MQTT_ADAPTER_PORT = 30124;
 
-    // (eclipse-hono-adapter-mqtt)
     // external Port where the endpoint can be reached via the MQTT protocol communication
     public static final int HONO_SECURE_MQTT_ADAPTER_PORT = 30267;
+
+    /**
+     * AMQP-HONO-PROTOCOL-ADAPTER
+     *
+     * Port of the AMQP protocol adapter where the device supporting AMQP 1.0
+     * can Publish messages to Eclipse Hono Telemetry, Event and Command & Control Endpoints
+     */
+    // (service name: eclipse-hono-adapter-amqp)
+    // external Port where the endpoint can be reached via the AMQP protocol communication
+    public static final int HONO_AMQP_ADAPTER_PORT = 30269;
+
+    // external Port where the endpoint can be reached via the AMQPS protocol communication
+    public static final int HONO_AMQPS_ADAPTER_PORT = 31206;
 
     /**
      * Hono is designed to structure
