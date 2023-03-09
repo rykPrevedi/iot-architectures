@@ -23,7 +23,7 @@ public class AuthProducer {
     private static final Logger LOG = LoggerFactory.getLogger(AuthProducer.class);
     private static final String MQTT_USERNAME = "mydevice@mytenant";
     private static final String MQTT_PASSWORD = "mypassword";
-    private static final String TOPIC = "telemetry";
+    private static final String TOPIC = "telemetry";    // telemetry/mytenant/mydevice
     private static final String METADATA = "/?content-type=text%2Fplain";
     private static final int QOS = 0;
     private static final int MESSAGE_COUNT = 100;

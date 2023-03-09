@@ -28,7 +28,8 @@ import java.util.UUID;
 
 public class MqttCommandConsumer {
     private static final Logger LOG = LoggerFactory.getLogger(MqttCommandConsumer.class);
-    private static final String MQTT_USERNAME = "mqttconsumer@mytenant";
+    private static final String TENANT_ID = "mytenant";
+    private static final String AUTH_ID = "mqttconsumer";
     private static final String MQTT_PASSWORD = "mqttconsumerpassword";
     private static final String TOPIC = "command///req/#";
     private static final int QOS = 0;
@@ -41,7 +42,7 @@ public class MqttCommandConsumer {
     public MqttCommandConsumer() {
         vertx = Vertx.vertx();
         options = new MqttConnectOptions();
-        options.setUserName(MQTT_USERNAME);
+        options.setUserName(AUTH_ID + "@" + TENANT_ID);
         options.setPassword(MQTT_PASSWORD.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
@@ -98,7 +99,7 @@ public class MqttCommandConsumer {
             client.disconnect();
             client.close();
             LOG.info("[{}] Disconnects", clientId);
-            System.exit(1);
+            System.exit(0);
         } catch (MqttException e) {
             e.printStackTrace();
         }
