@@ -27,7 +27,7 @@
     {
       "type": "hono-amqp",
       "enabled": true,
-      "device-authentication-required": false
+      "device-authentication-required": true
     }
   ]
 }
