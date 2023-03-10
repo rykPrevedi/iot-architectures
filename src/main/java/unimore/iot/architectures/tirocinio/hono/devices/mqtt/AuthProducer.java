@@ -100,9 +100,12 @@ public class AuthProducer {
     }
 
     private void connect(MqttConnectOptions options, String clientId) throws MqttException {
-        client.connect(options);
+        //client.connect(options);
+        IMqttToken iMqttToken= client.connectWithResult(options);
         if (client.isConnected()) {
             LOG.info("Connected to the HONO Mqtt Adapter ! ClientID: [{}]", clientId);
+            LOG.info("Context : {}", iMqttToken.getUserContext());
+
         } else
             LOG.error("connection could not be established");
     }
