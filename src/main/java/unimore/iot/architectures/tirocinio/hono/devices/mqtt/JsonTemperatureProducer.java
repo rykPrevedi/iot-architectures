@@ -13,16 +13,20 @@ import java.util.UUID;
 
 
 /**
- *
  * mosquitto_pub -h 192.168.181.17 -p 30124 -u mydevice@mytenant -P mypassword -t telemetry -m '{\"temp\": 3}'
+ *
+ * this class uses the Paho library and:
+ *  connects to the Hono MQTT Adapter
+ *  publishes temperature values on the topic "telemetry"
+ *  adds content-type metadata to messages
  *
  * @author Riccardo Prevedi
  * @created 27/02/2023 - 13:55
  * @project architectures-iot
  */
 
-public class JsonProducer {
-    private static final Logger LOG = LoggerFactory.getLogger(JsonProducer.class);
+public class JsonTemperatureProducer {
+    private static final Logger LOG = LoggerFactory.getLogger(JsonTemperatureProducer.class);
     private static final String TENANT_ID = "mytenant";
     private static final String AUTH_ID = "device-mqtt";
     private static final String PASSWORD = "hono-secret";
@@ -33,9 +37,9 @@ public class JsonProducer {
     private static IMqttClient client;
     private static MqttConnectOptions options;
 
-    public JsonProducer() {
+    public JsonTemperatureProducer() {
         options = new MqttConnectOptions();
-        options.setUserName(AUTH_ID + "@" + TENANT_ID); // mqttjson@mytenant
+        options.setUserName(AUTH_ID + "@" + TENANT_ID);
         options.setPassword(PASSWORD.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
@@ -46,7 +50,7 @@ public class JsonProducer {
 
         LOG.info("Client Json started ... ");
         try {
-            JsonProducer jsonProducer = new JsonProducer();
+            JsonTemperatureProducer jsonProducer = new JsonTemperatureProducer();
 
             String clientId = UUID.randomUUID().toString();
 
@@ -54,6 +58,7 @@ public class JsonProducer {
 
             client = new MqttClient(mqttAdapterUrl, clientId, new MemoryPersistence());
 
+            // connect to Hono mqtt adapter
             jsonProducer.connect(options, clientId);
 
             EngineTemperatureSensor engineTemperatureSensor = new EngineTemperatureSensor();
