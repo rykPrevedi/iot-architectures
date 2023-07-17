@@ -1,1 +1,1 @@
-# IoT Architecture demonstration using Eclipse Hono
+# IoT architecture demo on Eclipse Hono
