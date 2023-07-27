@@ -9,21 +9,21 @@ package unimore.iot.architectures.tirocinio.hono.Constants;
 public class HonoConstants {
 
     // (k8s-node-1) IP address of Kubernetes node where HONO is running
-    public static final String HONO_HOST = "192.168.181.17";
+    public static final String HONO_HOST = "192.168.56.18";
 
 
     /**
      * SERVICE-DEVICE-REGISTRY
      * (svc name: eclipse-hono-service-device-registry-ext)
      *
-     * Device registry port where applications can register the device and tenant and set the device password.
+     * Port of the Device Registry where applications can register devices and tenants and update the device credentials.
      * Through the Device Registry Management API
      */
 
     // external Port where the endpoint can be reached via the HTTP protocol communication
     public static final int HONO_HTTP_DEVICE_REGISTRY_PORT = 30274;
     // external Port where the endpoint can be reached via the HTTPS protocol communication
-    public static final int HONO_HTTPS_DEVICE_REGISTRY_PORT = 30054;
+    public static final int HONO_HTTPS_DEVICE_REGISTRY_PORT = 31399;
 
     /**
      * AMQP-MESSAGING-NETWORK-ROUTER
@@ -33,9 +33,9 @@ public class HonoConstants {
      */
 
     // external Port where the endpoint can be reached via the AMQP protocol communication
-    public static final int HONO_AMQP_CONSUMER_PORT = 30546;
+    public static final int HONO_AMQP_CONSUMER_PORT = 31453;
     // external Port where the endpoint can be reached via the AMQPS protocol communication
-    public static final int HONO_AMQPS_CONSUMER_PORT = 30974;
+    public static final int HONO_AMQPS_CONSUMER_PORT = 30670;
 
     /**
      * MQTT-HONO-PROTOCOL-ADAPTER
@@ -46,7 +46,7 @@ public class HonoConstants {
     // external Port where the endpoint can be reached via the MQTT protocol communication
     public static final int HONO_MQTT_ADAPTER_PORT = 30124;
     // external Port where the endpoint can be reached via the MQTT protocol communication
-    public static final int HONO_SECURE_MQTT_ADAPTER_PORT = 30267;
+    public static final int HONO_SECURE_MQTT_ADAPTER_PORT = 32176;
 
     /**
      * AMQP-HONO-PROTOCOL-ADAPTER
@@ -58,7 +58,7 @@ public class HonoConstants {
     // external Port where the endpoint can be reached via the AMQP protocol communication
     public static final int HONO_AMQP_ADAPTER_PORT = 30269;
     // external Port where the endpoint can be reached via the AMQPS protocol communication
-    public static final int HONO_AMQPS_ADAPTER_PORT = 31206;
+    public static final int HONO_AMQPS_ADAPTER_PORT = 31294;
 
     /**
      * Hono is designed to structure
@@ -67,7 +67,12 @@ public class HonoConstants {
      * for enabling a scalable distributed architecture
      * to handle independent subsets as if each subset had its own installation
      */
-    public static final String MY_TENANT_ID = "mytenant";
+
+    // The Smart Building "tenant-floor-area"
+    public static final String MY_TENANT_ID = "tenant-00-a1";
+
+    // Device universal password (not to be used in production)
+    public static final String MY_DEVICE_PASSWORD = "password";
 
     /**
      * For devices signaling that they remain connected for an indeterminate amount of time, a command is

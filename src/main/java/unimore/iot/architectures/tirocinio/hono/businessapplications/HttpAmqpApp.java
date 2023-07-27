@@ -78,7 +78,7 @@ public class HttpAmqpApp {
 
         String baseUrl = String.format("http://%s:%d",
                 HonoConstants.HONO_HOST,
-                HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
+                HonoConstants.HONO_HTTPS_DEVICE_REGISTRY_PORT);
         Unirest.config().defaultBaseUrl(baseUrl);
 
         getDeviceByTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID);
@@ -135,6 +135,7 @@ public class HttpAmqpApp {
                             @Override
                             public void accept(TimeUntilDisconnectNotification notification) {
                                 handleCommandReadinessNotification(notification);
+                                //return null;
                             }
                         });
                         handleTelemetryMessage(msg);

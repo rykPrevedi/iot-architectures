@@ -13,7 +13,7 @@ import java.nio.file.Paths;
 /**
  * This class allows to:
  * 1. Create a new tenant
- * 2. Add a new Device to a tenant,
+ * 2. Add a new device to a tenant
  * 3. Set up the credentials for the device including auth-id and password
  *
  * @author Riccardo Prevedi
@@ -24,55 +24,136 @@ import java.nio.file.Paths;
 public class HttpProvisioningManagementApp {
 
     private static final Logger LOG = LoggerFactory.getLogger(HttpProvisioningManagementApp.class);
-    private static final String tenantDRMApi = "/v1/tenants/";
-    private static final String deviceDRMApi = "/v1/devices/";
-    private static final String credentialDRMApi = "/v1/credentials/";
+    private static final String tenantsDrmApi = "/v1/tenants/";
+    private static final String devicesDrmApi = "/v1/devices/";
+    private static final String credentialsDrmApi = "/v1/credentials/";
 
-    // ------------------------------------------------------------------------
+    // AMQP ------------------------------------------------------------------------
 
-    private static final String amqpDeviceId = "amqp-device";
+    //private static final String amqpDeviceId = "amqp-device";
+    //private static final String amqpPassword = "hono-secret";
     private static final String amqpAuthId = "device-amqp";
-    private static final String amqpPassword = "hono-secret";
 
-    // ------------------------------------------------------------------------
+    // MQTT ------------------------------------------------------------------------
 
-    private static final String mqttDeviceId = "mqtt-device";
+    //private static final String mqttDeviceId = "mqtt-device";
+    //private static final String mqttPassword = "hono-secret";
     private static final String mqttAuthId = "device-mqtt";
-    private static final String mqttPassword = "hono-secret";
+
+    private static String deviceId;
 
 
     public HttpProvisioningManagementApp() {
     }
 
     public static void main(String[] args) {
-        String baseUrl = String.format("http://%s:%d",  // http://192.168.181.17:30274
+        String baseUrl = String.format("http://%s:%d",  // http://192.168.56.18:30274
                 HonoConstants.HONO_HOST,
                 HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
         Unirest.config().defaultBaseUrl(baseUrl);
 
-        //createTenant(tenantDRMApi, HonoConstants.MY_TENANT_ID);
-        addDeviceToTenant(deviceDRMApi, HonoConstants.MY_TENANT_ID, amqpDeviceId);
-        setDeviceAuthorization(credentialDRMApi, HonoConstants.MY_TENANT_ID, amqpDeviceId, amqpAuthId, amqpPassword);
+        //newTenantWithAlias(tenantsDrmApi, HonoConstants.MY_TENANT_ID);
+        newDevice(devicesDrmApi, HonoConstants.MY_TENANT_ID);    // overwrite deviceId
+        setDeviceAuthorization(credentialsDrmApi, HonoConstants.MY_TENANT_ID, deviceId, mqttAuthId, HonoConstants.MY_DEVICE_PASSWORD);
     }
 
-
     /**
-     * Setting up the tenant properties with a specified json file
+     * Updates a device's credentials
+     * <p>
+     * <p>
+     * curl -i -X PUT -H "content-type: application/json" --data-binary '[{
+     * "type": "hashed-password",
+     * "auth-id": "'${MY_DEVICE}'",
+     * "secrets": [{
+     * "pwd-plain": "'${MY_PWD}'"
+     * }]
+     * }]' http://${REGISTRY_IP}:28080/v1/credentials/${MY_TENANT}/${MY_DEVICE}
      *
-     * @param configurationFilePath the json file path
+     * @param resourcePath "/v1/credentials/"
+     * @param tenantId     "mytenant"
+     * @param deviceId     "uuid"
+     * @param authId       "device-protocol"
+     * @param password     "password"
      */
-    public static void updateTenant(String tenantId, String configurationFilePath) throws IOException {
+    private static void setDeviceAuthorization(String resourcePath, String tenantId, String deviceId, String authId, String password) {
         Unirest
-                .put("/v1/tenants/" + tenantId)
+                .put(resourcePath + tenantId + "/" + deviceId)
                 .header("content-type", "application/json")
-                .body(new String(Files.readAllBytes(Paths.get(configurationFilePath))))
+                .body(String.format("[{ \"type\": \"hashed-password\", \"auth-id\": \"%s\", \"secrets\": [{\"pwd-plain\": \"%s\" }] }]",
+                        authId,
+                        password))
                 .asJson()
-                .ifSuccess(httpResponse -> LOG.info("Tenant with ID: {} Updated --> Status: {} {}", tenantId, httpResponse.getStatus(), httpResponse.getStatusText()))
+                .ifSuccess(httpResponse -> LOG.info("Password is Set !"))
                 .ifFailure(httpResponse -> {
                     LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
                     LOG.error("{}", httpResponse.getBody().toPrettyString());
                 });
     }
+
+    /**
+     * Create a new device registration with auto-generated ID
+     * This creates both a device identity and an (empty) credentials record.
+     * <p>
+     * <p>
+     * curl -i -X POST http://${REGISTRY_IP}:28080/v1/devices/${MY_TENANT}
+     *
+     * @param resourcePath "/v1/devices/"
+     * @param tenantId     "myTenant"
+     */
+    private static void newDevice(String resourcePath, String tenantId) {
+
+        Unirest
+                .post(resourcePath + tenantId)
+                .asJson()
+                .ifSuccess(jsonNodeHttpResponse -> {
+                    LOG.info("Status {}, Registered device: {}",
+                            jsonNodeHttpResponse.getStatusText(),
+                            jsonNodeHttpResponse.getBody().toPrettyString());
+
+                    // The identifier is generated by the registry.
+                    deviceId = jsonNodeHttpResponse
+                            .getBody()
+                            .getObject()
+                            .get("id")
+                            .toString();
+                })
+                .ifFailure(httpResponse -> {
+                    LOG.error("Oh No, Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    httpResponse.getParsingError().ifPresent(exception -> {
+                        LOG.error("Parsing Exception " + exception);
+                        LOG.error("Original Body: {}", exception.getOriginalBody());
+                    });
+                });
+
+    }
+
+    /**
+     * Create a new tenant with a unique alias. The alias MUST be unique among all tenants
+     * and MUST consist of only lower case letters, digits and hyphens
+     * <p>
+     * <p>
+     * curl -i -X POST -H "content-type: application/json" --data-binary '{
+     * "ext": {
+     * "messaging-type": "amqp"
+     * }
+     * }' http://${REGISTRY_IP}:28080/v1/tenants
+     *
+     * @param resourcePath "/v1/tenants/"
+     * @param tenantId     "myTenant"
+     */
+    private static void newTenantWithAlias(String resourcePath, String tenantId) {
+        Unirest
+                .post(resourcePath + tenantId)
+                .header("content-type", "application/json")
+                .body("{\"ext\": {\"messaging-type\": \"amqp\"}}")
+                .asJson()
+                .ifSuccess(httpResponse -> LOG.info("Registered tenant: {}", HonoConstants.MY_TENANT_ID))
+                .ifFailure(httpResponse -> {
+                    LOG.error("Oh No, Status: {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
+                    LOG.error("{}", httpResponse.getBody().toPrettyString());
+                });
+    }
+
 
     /**
      * Get all the registered tenants
@@ -91,7 +172,7 @@ public class HttpProvisioningManagementApp {
 
 
     /**
-     * Search devices for a tenant with optional filters, paging and sorting options.
+     * Search devices for a tenant ID
      *
      * @param resourcePath "/v1/devices/"
      * @param tenantId     "myTenant"
@@ -102,40 +183,6 @@ public class HttpProvisioningManagementApp {
                 .header("accept", "application/json")
                 .asJson()
                 .ifSuccess(httpResponse -> LOG.info("Device IDs that belong to the tenant - {}:\n{}", tenantId, httpResponse.getBody().toPrettyString()))
-                .ifFailure(httpResponse -> {
-                    LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
-                    LOG.error("{}", httpResponse.getBody().toPrettyString());
-                });
-    }
-
-
-    /**
-     * Updates a device's credentials
-     * <p>
-     * <p>
-     * curl -i -X PUT -H "content-type: application/json" --data-binary '[{
-     * "type": "hashed-password",
-     * "auth-id": "'${MY_DEVICE}'",
-     * "secrets": [{
-     * "pwd-plain": "'${MY_PWD}'"
-     * }]
-     * }]' http://${REGISTRY_IP}:28080/v1/credentials/${MY_TENANT}/${MY_DEVICE}
-     *
-     * @param resourcePath "/v1/credentials/"
-     * @param tenantId     "mytenant"
-     * @param deviceId     "device-mqtt-1"
-     * @param authId       "auth-device-mqtt-1"
-     * @param password     "mqtt-1-password"
-     */
-    private static void setDeviceAuthorization(String resourcePath, String tenantId, String deviceId, String authId, String password) {
-        Unirest
-                .put(resourcePath + tenantId + "/" + deviceId)
-                .header("content-type", "application/json")
-                .body(String.format("[{ \"type\": \"hashed-password\", \"auth-id\": \"%s\", \"secrets\": [{\"pwd-plain\": \"%s\" }] }]",
-                        authId,
-                        password))
-                .asJson()
-                .ifSuccess(httpResponse -> LOG.info("Password is Set !"))
                 .ifFailure(httpResponse -> {
                     LOG.error("Oh No ! Status {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
                     LOG.error("{}", httpResponse.getBody().toPrettyString());
@@ -166,32 +213,6 @@ public class HttpProvisioningManagementApp {
                 });
     }
 
-    /**
-     * Create a new tenant with a unique alias. The alias MUST be unique among all tenants
-     * and MUST consist of only lower case letters, digits and hyphens
-     * <p>
-     * <p>
-     * curl -i -X POST -H "content-type: application/json" --data-binary '{
-     * "ext": {
-     * "messaging-type": "kafka"
-     * }
-     * }' http://${REGISTRY_IP}:28080/v1/tenants
-     *
-     * @param resourcePath "/v1/tenants/"
-     * @param tenantId     "myTenant"
-     */
-    private static void createTenantWithAlias(String resourcePath, String tenantId) {
-        Unirest
-                .post(resourcePath + tenantId)
-                .header("content-type", "application/json")
-                .body("{\"ext\": {\"messaging-type\": \"amqp\"}}")
-                .asJson()
-                .ifSuccess(httpResponse -> LOG.info("Registered tenant: {}", HonoConstants.MY_TENANT_ID))
-                .ifFailure(httpResponse -> {
-                    LOG.error("Oh No, Status: {} {}", httpResponse.getStatus(), httpResponse.getStatusText());
-                    LOG.error("{}", httpResponse.getBody().toPrettyString());
-                });
-    }
 
     /**
      * Delete an existing device registration
@@ -219,7 +240,7 @@ public class HttpProvisioningManagementApp {
 
 
     /**
-     * Add the device with "device-mqtt-1" as device-id.
+     * Add the device with "some_specified_id" as device-id.
      * This creates both a device identity and an (empty) credentials record.
      * <p>
      * <p>
@@ -229,7 +250,7 @@ public class HttpProvisioningManagementApp {
      * @param tenantId     "myTenant"
      * @param deviceId     "device-mqtt-1"
      */
-    private static void addDeviceToTenant(String resourcePath, String tenantId, String deviceId) {
+    private static void newDeviceWithAlias(String resourcePath, String tenantId, String deviceId) {
         Unirest
                 .post(resourcePath + tenantId + "/" + deviceId)
                 .header("content-type", "application/json")
@@ -243,4 +264,6 @@ public class HttpProvisioningManagementApp {
                     });
                 });
     }
+
+
 }

@@ -2,7 +2,8 @@
   "enabled": true,
   "ext": {
     "messaging-type": "amqp",
-    "floor": "first"
+    "floor": "zero",
+    "area": "a1"
   },
   "adapters": [
     {
@@ -28,7 +29,7 @@
     {
       "type": "hono-amqp",
       "enabled": true,
-      "device-authentication-required": false
+      "device-authentication-required": true
     }
   ]
 }

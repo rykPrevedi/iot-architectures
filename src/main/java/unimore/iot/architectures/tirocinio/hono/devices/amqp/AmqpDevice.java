@@ -11,7 +11,7 @@ import org.eclipse.hono.util.QoS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
-import unimore.iot.architectures.tirocinio.hono.devices.mqtt.JsonProducer;
+import unimore.iot.architectures.tirocinio.hono.devices.mqtt.JsonTemperatureProducer;
 
 /**
  * @author Riccardo Prevedi
@@ -20,11 +20,12 @@ import unimore.iot.architectures.tirocinio.hono.devices.mqtt.JsonProducer;
  */
 
 public class AmqpDevice {
-    private static final Logger LOG = LoggerFactory.getLogger(JsonProducer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JsonTemperatureProducer.class);
     private static final String TENANT_ID = "mytenant";
     private static final String AUTH_ID = "device-amqp";
     private static final String PASSWORD = "hono-secret";
     private static final int RECONNECT_ATTEMPTS = 3;
+    private static final int CONNECTION_TIMEOUT = 1000 * 5;
 
     private final ClientConfigProperties config = new ClientConfigProperties();
     private final Vertx vertx = Vertx.vertx();
@@ -51,6 +52,7 @@ public class AmqpDevice {
                 .onSuccess(connection1 -> {
                     LOG.info("connected to the AMPQ Adapter [{}]", connection1.getRemoteContainerId());
                     startDevice(connection1);
+                    vertx.setTimer(CONNECTION_TIMEOUT, l -> disconnectClient(connection));
                 })
                 .onFailure(t -> {
                     LOG.error("Failed to establish connection: ", t);
@@ -63,7 +65,7 @@ public class AmqpDevice {
 
         sendTelemetryMessageWithQos0();
 
-        vertx.setTimer(1000, l -> sendTelemetryMessageWithQos1());
+        //vertx.setTimer(1000, l -> sendTelemetryMessageWithQos1());
     }
 
     private void sendTelemetryMessageWithQos0() {
@@ -76,7 +78,7 @@ public class AmqpDevice {
 
     private void sendTelemetryMessageWithQos1() {
 
-        JsonObject jsonPayload = new JsonObject().put("weather", "cloudy");
+        JsonObject jsonPayload = new JsonObject().put("temperature", 42);
         client.sendTelemetry(QoS.AT_LEAST_ONCE, jsonPayload.toBuffer(), "application/json", null, null, null)
                 .onSuccess(delivery -> LOG.info("Telemetry message with QoS 'AT_MOST_ONCE' sent: {}", jsonPayload))
                 .onFailure(t -> {
@@ -86,5 +88,10 @@ public class AmqpDevice {
                     }
                     LOG.error("Sending telemetry message with QoS 'AT_LEAST_ONCE' failed: " + t + hint);
                 });
+    }
+
+    private void disconnectClient(HonoConnection connection) {
+        connection.disconnect();
+        System.exit(0);
     }
 }

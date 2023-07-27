@@ -23,10 +23,12 @@ import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
 
 public class UnAuthAmqpDevice {
     private static final Logger LOG = LoggerFactory.getLogger(UnAuthAmqpDevice.class);
-    private static final String AUTH_ID = "device-amqp";
-    private static final String PASSWORD = "hono-secret";
+    //private static final String AUTH_ID = "device-amqp";
+    //private static final String PASSWORD = "hono-secret";
+    private static final String USERNAME = "hono-client@HONO";
+    private static final String PASSWORD = "secret";
     private static final String DEVICE_ID = "unAuth-amqp-device";
-    private static final int CONNECTION_TIME = 1000 * 5;    // milliseconds
+    private static final int CONNECTION_TIMEOUT = 1000 * 5;    // milliseconds
     private static final int RECONNECT_ATTEMPTS = 3;
 
     private static String tenantId;
@@ -40,15 +42,18 @@ public class UnAuthAmqpDevice {
     public UnAuthAmqpDevice() {
         config.setHost(HonoConstants.HONO_HOST);
         config.setPort(HonoConstants.HONO_AMQP_ADAPTER_PORT);
-        config.setUsername(AUTH_ID + "@" + tenantId);
+        //config.setUsername(AUTH_ID + "@" + tenantId);
+        config.setUsername(USERNAME);
         config.setPassword(PASSWORD);
         config.setReconnectAttempts(RECONNECT_ATTEMPTS);
     }
 
     public static void main(String[] args) {
+
+        // configuring a default base URL
         String baseUrl = String.format("http://%s:%d",
                 HonoConstants.HONO_HOST,
-                HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
+                HonoConstants.HONO_HTTPS_DEVICE_REGISTRY_PORT);
         Unirest.config().defaultBaseUrl(baseUrl);
 
         // check for the "ext": {"floor": "first"}
@@ -69,14 +74,14 @@ public class UnAuthAmqpDevice {
                         .getObject()
                         .getJSONArray("result");
 
-        System.out.println(tenantArray);
+        //System.out.println(tenantArray);
 
         // now extract the "ext" member values
         for (int i = 0; i < tenantArray.length(); i++) {
             if (tenantArray.getJSONObject(i).optJSONObject("ext") != null) {
                 if (tenantArray.getJSONObject(i).getJSONObject("ext").get("floor").equals(floorNumber)) {
                     tenantId = tenantArray.getJSONObject(i).get("id").toString();
-                    System.out.println(tenantArray.getJSONObject(i).get("id").toString());
+                    LOG.info("The tenant ID is set !");
                 }
             }
         }
@@ -90,7 +95,7 @@ public class UnAuthAmqpDevice {
                     public void handle(HonoConnection connection) {
                         LOG.info("Connected to the AMPQ Adapter [{}]", connection.getRemoteContainerId());
                         startDevice(connection);
-                        vertx.setTimer(CONNECTION_TIME, l -> disconnectClient(connection));
+                        vertx.setTimer(CONNECTION_TIMEOUT, l -> disconnectClient(connection));
                     }
                 })
                 .onFailure(new Handler<Throwable>() {
@@ -108,12 +113,13 @@ public class UnAuthAmqpDevice {
 
     // Send message from an Unregistered Device
     private void sendTelemetryMessageWithQos0() {
+
         String payload = "42";
         amqpAdapterClient.sendTelemetry(QoS.AT_MOST_ONCE,
                         Buffer.buffer(payload),
                         "text/plain",
-                        tenantId,
-                        DEVICE_ID,
+                        null,   // tenantId
+                        DEVICE_ID,  // TODO: why the amqp consumer doesn't want to receive these messages?
                         null)
                 .onSuccess(new Handler<ProtonDelivery>() {
                     @Override

@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  *
- * mosquitto_pub -h 192.168.181.17 -p 30124 -u mydevice@mytenant -P mypassword -t telemetry -m '{"temp": 3}'
+ * mosquitto_pub -h 192.168.56.18 -p 30124 -u mydevice@mytenant -P mypassword -t telemetry -m '{"temp": 3}'
  *
  * @author Riccardo Prevedi
  * @created 25/02/2023 - 17:47
@@ -21,9 +21,9 @@ import java.util.UUID;
 public class AuthProducer {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthProducer.class);
-    private static final String TENANT_ID = "mytenant";
+    //private static final String TENANT_ID = "mytenant";
+    //private static final String PASSWORD = "hono-secret";
     private static final String AUTH_ID = "device-mqtt";
-    private static final String PASSWORD = "hono-secret";
     private static final String TOPIC = "telemetry";    // telemetry/mytenant/mydevice
     private static final String METADATA = "/?content-type=text%2Fplain";
     private static final int QOS = 0;
@@ -33,8 +33,8 @@ public class AuthProducer {
 
     public AuthProducer() {
         options = new MqttConnectOptions();
-        options.setUserName(AUTH_ID + "@" + TENANT_ID);
-        options.setPassword(PASSWORD.toCharArray());
+        options.setUserName(AUTH_ID + "@" + HonoConstants.MY_TENANT_ID);
+        options.setPassword(HonoConstants.MY_DEVICE_PASSWORD.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
         options.setConnectionTimeout(10);   // maximum seconds for the connection establishment
