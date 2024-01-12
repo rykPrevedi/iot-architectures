@@ -1,9 +1,9 @@
-package unimore.iot.architectures.tirocinio.hono.businessapplications;
+package unimore.iot.architectures.tirocinio.hono.devicesprovision;
 
 import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
+import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
 
 
 /**
@@ -17,46 +17,18 @@ import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
  * @project architectures-iot
  */
 
-public class HttpProvisioningManagementApp {
+public class HonoHttpProvisionerBase {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HttpProvisioningManagementApp.class);
-    private static final String drmTenantsApi = "/v1/tenants/";
-    private static final String drmDevicesApi = "/v1/devices/";
-    private static final String drmCredentialsApi = "/v1/credentials/";
+    private static final Logger LOG = LoggerFactory.getLogger(HonoHttpProvisionerBase.class);
+    public static final String DRM_TENANTS_API = "/v1/tenants/";
+    public static final String DRM_DEVICES_API = "/v1/devices/";
+    public static final String DRM_CREDENTIALS_API = "/v1/credentials/";
+    public static String deviceId;
 
-    // AMQP ------------------------------------------------------------------------
-
-    //private static final String amqpDeviceId = "amqp-device";
-    //private static final String amqpPassword = "hono-secret";
-    private static final String amqpAuthId = "amqp-command-consumer";
-
-    // MQTT ------------------------------------------------------------------------
-
-    //private static final String mqttDeviceId = "mqtt-device";
-    //private static final String mqttPassword = "hono-secret";
-    private static final String mqttAuthId = "device-mqtt";
-
-    private static String deviceId;
-
-
-    public HttpProvisioningManagementApp() {
+    // prevent instantiation
+    public HonoHttpProvisionerBase() {
     }
 
-    public static void main(String[] args) {
-        String baseUrl = String.format("http://%s:%d",  // http://192.168.56.18:30274
-                HonoConstants.HONO_HOST,
-                HonoConstants.HONO_HTTP_DEVICE_REGISTRY_PORT);
-        Unirest.config().defaultBaseUrl(baseUrl);
-
-        //newTenantWithAlias(tenantsDrmApi, HonoConstants.MY_TENANT_ID);
-
-        newDevice(drmDevicesApi, HonoConstants.MY_TENANT_ID);
-        setDeviceAuthorization(drmCredentialsApi,
-                HonoConstants.MY_TENANT_ID,
-                deviceId,
-                amqpAuthId,
-                HonoConstants.MY_DEVICE_PASSWORD);
-    }
 
     /**
      * Update device's credentials
@@ -70,17 +42,17 @@ public class HttpProvisioningManagementApp {
      * }]
      * }]' http://${REGISTRY_IP}:28080/v1/credentials/${MY_TENANT}/${MY_DEVICE}
      *
-     * @param resourcePath {@value drmCredentialsApi}
+     * @param resourcePath {@value DRM_CREDENTIALS_API}
      * @param tenantId     "mytenant"
-     * @param deviceId     {@link HttpProvisioningManagementApp#deviceId}
+     * @param deviceId     {@link HonoHttpProvisionerBase#deviceId}
      * @param authId       "device-protocol"
      * @param password     "password"
      */
-    private static void setDeviceAuthorization(String resourcePath,
-                                               String tenantId,
-                                               String deviceId,
-                                               String authId,
-                                               String password) {
+    public static void setDeviceAuthorization(String resourcePath,
+                                              String tenantId,
+                                              String deviceId,
+                                              String authId,
+                                              String password) {
         Unirest
                 .put(resourcePath + tenantId + "/" + deviceId)
                 .header("content-type", "application/json")
@@ -97,23 +69,23 @@ public class HttpProvisioningManagementApp {
 
     /**
      * Create a new device registration with auto-generated ID which with overwriting
-     * {@link HttpProvisioningManagementApp#deviceId}
+     * {@link HonoHttpProvisionerBase#deviceId}
      * This creates both a device identity and an (empty) credentials record.
      * <p>
-     * This method takes two parameters {@code String} and {@code {@link HttpProvisioningManagementApp#deviceId}}
+     * This method takes two parameters {@code String} and {@code {@link HonoHttpProvisionerBase#deviceId}}
      * and do this:
      * curl -i -X POST http://${REGISTRY_IP}:30247/v1/devices/${MY_TENANT}
      *
-     * @param resourcePath {@value drmDevicesApi}
-     * @param tenantId      {@link HttpProvisioningManagementApp#deviceId}
+     * @param resourcePath {@value DRM_DEVICES_API}
+     * @param tenantId     {@link HonoHttpProvisionerBase#deviceId}
      */
-    private static void newDevice(String resourcePath, String tenantId) {
+    public static String newDevice(String resourcePath, String tenantId) {
 
         Unirest
                 .post(resourcePath + tenantId)
                 .asJson()
                 .ifSuccess(jsonNodeHttpResponse -> {
-                    LOG.info("Status {}, Registered device: {}",
+                    LOG.info("\nStatus : {}\nRegistered device:\n{}",
                             jsonNodeHttpResponse.getStatusText(),
                             jsonNodeHttpResponse.getBody().toPrettyString());
 
@@ -132,6 +104,7 @@ public class HttpProvisioningManagementApp {
                     });
                 });
 
+        return deviceId;
     }
 
     /**

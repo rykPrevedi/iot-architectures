@@ -1,4 +1,4 @@
-package unimore.iot.architectures.tirocinio.hono.Constants;
+package unimore.iot.architectures.tirocinio.hono.constants;
 
 /**
  * @author Riccardo Prevedi
@@ -15,7 +15,7 @@ public class HonoConstants {
     /**
      * SERVICE-DEVICE-REGISTRY
      * (svc name: eclipse-hono-service-device-registry-ext)
-     *
+     * *
      * Port of the Device Registry where applications can register devices and tenants and update the device credentials.
      * Through the Device Registry Management API
      */
@@ -28,8 +28,9 @@ public class HonoConstants {
     /**
      * AMQP-MESSAGING-NETWORK-ROUTER
      * (svc name: eclipse-hono-dispatch-router-ext)
-     *
-     * Port of the AMQP network where consumers can receive data (in the standard setup this is the port of the qdrouter).
+     * *
+     * Port of the AMQP network where consumers can receive data
+     * (in the standard setup this is the port of the qdrouter or Qpid Dispatch Router).
      */
 
     // external Port where the endpoint can be reached via the AMQP protocol communication
@@ -40,7 +41,7 @@ public class HonoConstants {
     /**
      * MQTT-HONO-PROTOCOL-ADAPTER
      * (svc name: eclipse-hono-adapter-mqtt)
-     *
+     * *
      * Port of the MQTT protocol adapter where the device can Publish messages or Subscribe to a specific topic
      */
     // external Port where the endpoint can be reached via the MQTT protocol communication
@@ -51,7 +52,7 @@ public class HonoConstants {
     /**
      * AMQP-HONO-PROTOCOL-ADAPTER
      * (svc name: eclipse-hono-adapter-amqp)
-     *
+     * *
      * Port of the AMQP protocol adapter where the device supporting AMQP 1.0
      * can Publish messages to Eclipse Hono Telemetry, Event and Command & Control Endpoints
      */
@@ -59,6 +60,20 @@ public class HonoConstants {
     public static final int HONO_AMQP_ADAPTER_PORT = 30269;
     // external Port where the endpoint can be reached via the AMQPS protocol communication
     public static final int HONO_AMQPS_ADAPTER_PORT = 31294;
+
+    /**
+     * HTTP-HONO-PROTOCOL-ADAPTER
+     * (svc name: eclipse-hono-adapter-http)
+     * *
+     * Port of the HTTP protocol adapter where the device can connect to in order to send or receive messages
+     *
+     */
+    // external Port where the endpoint can be reached via the HTTP protocol communication
+    public static final int HONO_HTTP_ADAPTER_PORT = 30516;
+    // external Port where the endpoint can be reached via the HTTPS protocol communication
+    public static final int HONO_HTTPS_ADAPTER_PORT = 31398;
+
+
 
     /**
      * Hono is designed to structure
@@ -72,7 +87,22 @@ public class HonoConstants {
     public static final String MY_TENANT_ID = "tenant-00-a1";
 
     // Device universal password (not to be used in production)
-    public static final String MY_DEVICE_PASSWORD = "password";
+    public static final String devicePassword = "password";
+
+    // AMQP ------------------------------------------------------------------------
+
+    //TODO:
+    // private static final String amqpDeviceAuthId = "device-amqp";
+    public static final String amqpCommandConsumerAuthId = "amqp-command-consumer";
+
+    // MQTT ------------------------------------------------------------------------
+
+    public static final String mqttDeviceAuthId = "device-mqtt";
+
+    // HTTP ------------------------------------------------------------------------
+
+    public static final String httpDeviceAuthId = "device-http";
+
 
     /**
      * For devices signaling that they remain connected for an indeterminate amount of time, a command is
