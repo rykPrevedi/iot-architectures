@@ -12,17 +12,18 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <kong.version>3.14.1</kong.version>
-        <logback.version>1.4.5</logback.version>
+        <logback.version>1.4.12</logback.version>
         <paho.version>1.2.5</paho.version>
-        <application.amqp.version>2.1.1</application.amqp.version>
-        <vertx.version>4.3.8</vertx.version>
+        <application.amqp.version>2.3.0</application.amqp.version>
+        <client.device.amqp>2.3.0</client.device.amqp>
+        <vertx.version>4.4.6</vertx.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.eclipse.hono</groupId>
             <artifactId>hono-client-device-amqp</artifactId>
-            <version>2.1.1</version>
+            <version>${client.device.amqp}</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
