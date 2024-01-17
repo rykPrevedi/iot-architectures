@@ -7,24 +7,28 @@ import org.slf4j.LoggerFactory;
 import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
 /**
- * This class is a demo class
- * which allows to do a POST request with an empty body and {@header hono-ttd}
+ * Demo class that POST request with an empty body for One Way command receiving
+ * the request will have a Query Parameter indicating the ttd of the device
  * <p>
- * The response:
- * HTTP/1.1 200 OK
- * hono-command: sendLifecycleInfo
+ * The response (200 OK) indicating that the telemetry data has been accepted for processing.
+ * The response contains a command for the device to execute.
+ *  <p>
+ *  Other headers:
+ *  hono-command: sendLifecycleInfo
  * content-type: application/octet-stream
  * content-length: 33
  * <p>
- *  body.....
- *  <p>
+ * Demo command received:
+ * {
+ *   "info" : "app restarted."
+ * }
  * else, if the request failed the response body will contain the error details.
  */
 
-public class HttpCommandReceiver {
+public class HttpCommandOw {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HttpCommandReceiver.class);
-    private static final String URI = "/telemetry";
+    private static final Logger LOG = LoggerFactory.getLogger(HttpCommandOw.class);
+    private static final String URI = "/telemetry?hono-ttd=60"; // 60 sec waiting for the res
 
     public static void main(String[] args) {
         String username = httpDeviceAuthId + "@" + MY_TENANT_ID;
@@ -33,11 +37,14 @@ public class HttpCommandReceiver {
                 .post("http://" + HONO_HOST + ":" + HONO_HTTP_ADAPTER_PORT + URI)
                 .basicAuth(username, devicePassword)
                 .header("content-type", "application/json") // Required, if the request body is empty
-                .header("hono-ttd", "10")                   // number of seconds the device will wait for the response.
                 .asString()
                 .ifSuccess(cmd -> {
                     // The content-type will only be present if the response contains a command
-                    LOG.info("\nHTTP/1.1 {} {}\n{}\n\n{}", cmd.getStatus(), cmd.getStatusText(), cmd.getHeaders(), cmd.getBody());
+                    LOG.info("\nHTTP/1.1 {} {}\n{}\n\n{}",
+                            cmd.getStatus(),
+                            cmd.getStatusText(),
+                            cmd.getHeaders(),
+                            cmd.getBody());
                 })
                 .ifFailure(res -> {
                     LOG.error("Oh No, Status: {} {}", res.getStatus(), res.getStatusText());

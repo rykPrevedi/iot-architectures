@@ -32,14 +32,14 @@ import java.util.concurrent.CompletionException;
  * <p>
  * The code consumes data until it receives any input on its console (which finishes it and closes vertx).
  */
-public class DemoSolution {
+public class DemoHttpSolution {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DemoSolution.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DemoHttpSolution.class);
     private static final String HONO_CLIENT_USER = "consumer@HONO";
     private static final String HONO_CLIENT_PASSWORD = "verysecret";
     private final Vertx vertx = Vertx.vertx();  // embedded Vertx instance
     private final ApplicationClient<? extends MessageContext> client;
-    private static final Boolean SEND_ONE_WAY_COMMANDS = true;
+    private Boolean sendOneWayCommands = false;
     private static final String COMMAND_SEND_LIFECYCLE_INFO = "sendLifecycleInfo";
     private static final Random RAND = new Random();
     private MessageConsumer eventConsumer;
@@ -47,7 +47,16 @@ public class DemoSolution {
     protected final LifecycleStatus lifecycleStatus = new LifecycleStatus();
 
 
-    public DemoSolution() {
+    public DemoHttpSolution() {
+        this.client = createAmqpApplicationClient();
+    }
+
+    /**
+     * Class constructor
+     * @param isOwCommand default false
+     */
+    public DemoHttpSolution(Boolean isOwCommand) {
+        this.sendOneWayCommands = isOwCommand;
         this.client = createAmqpApplicationClient();
     }
 
@@ -196,15 +205,12 @@ public class DemoSolution {
                                 .orElseGet(Buffer::buffer).toString());
                     }
                 })
-                .onFailure(new Handler<Throwable>() {
-                    @Override
-                    public void handle(Throwable t) {
-                        if (t instanceof ServiceInvocationException) {
-                            final int errorCode = ((ServiceInvocationException) t).getErrorCode();
-                            LOG.debug("Command was replied with error code [{}].", errorCode);
-                        } else {
-                            LOG.debug("Could not send command : {}.", t.getMessage());
-                        }
+                .onFailure(t -> {
+                    if (t instanceof ServiceInvocationException) {
+                        final int errorCode = ((ServiceInvocationException) t).getErrorCode();
+                        LOG.debug("Command was replied with error code [{}].", errorCode);
+                    } else {
+                        LOG.debug("Could not send command : {}.", t.getMessage());
                     }
                 });
     }
@@ -218,28 +224,30 @@ public class DemoSolution {
      *
      * @param ttdNotification The ttd notification that was received for the device.
      */
-    private void sendOneWayCommandToAdapter(final String tenantId, final String deviceId,
-                                            final TimeUntilDisconnectNotification ttdNotification) {
+    private void sendOneWayCommandToAdapter(
+            final String tenantId,
+            final String deviceId,
+            final TimeUntilDisconnectNotification ttdNotification) {
 
         final Buffer commandBuffer = buildOneWayCommandPayload();
 
-
-        LOG.info("Sending one-way command [{}] to [{}].",
-                COMMAND_SEND_LIFECYCLE_INFO, ttdNotification.getTenantAndDeviceId());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Sending one-way command [{}] to [{}].",
+                    COMMAND_SEND_LIFECYCLE_INFO, ttdNotification.getTenantAndDeviceId());
+        }
         client.sendOneWayCommand(tenantId, deviceId, COMMAND_SEND_LIFECYCLE_INFO, commandBuffer)
-                .onSuccess(new Handler<Void>() {
-                    @Override
-                    public void handle(Void statusResult) {
-                        LOG.info("Successfully sent one-way command payload: [{}] and received status [{}].",
+                .onSuccess(statusResult -> {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Successfully sent one-way command payload: [{}] and received status [{}].",
                                 commandBuffer.toString(), statusResult);
                     }
                 })
                 .onFailure(t -> {
                     if (t instanceof ServiceInvocationException) {
                         final int errorCode = ((ServiceInvocationException) t).getErrorCode();
-                        LOG.error("One-way command was replied with error code [{}].", errorCode);
+                        LOG.debug("One-way command was replied with error code [{}].", errorCode);
                     } else {
-                        LOG.error("Could not send one-way command : {}.", t.getMessage());
+                        LOG.debug("Could not send one-way command : {}.", t.getMessage());
                     }
                 });
     }
@@ -272,7 +280,7 @@ public class DemoSolution {
      * @param notification The notification that was received for the device.
      */
     private void sendCommand(final TimeUntilDisconnectNotification notification) {
-        if (SEND_ONE_WAY_COMMANDS) {
+        if (sendOneWayCommands) {
             sendOneWayCommandToAdapter(notification.getTenantId(), notification.getDeviceId(), notification);
         } else {
             sendCommandToAdapter(notification.getTenantId(), notification.getDeviceId(), notification);
