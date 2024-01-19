@@ -4,8 +4,6 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
-import unimore.iot.architectures.tirocinio.hono.model.EngineTemperatureSensor;
 
 import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
@@ -14,17 +12,13 @@ import java.util.UUID;
 
 /**
  * Demo class that publish telemetry data on the "t" topic
- * {} json string that will be sent
- *
- * @author Riccardo Prevedi
- * @created 25/02/2023 - 17:47
- * @project architectures-iot
+ * {"temp": 5} is the json string that will be sent
  */
 
-public class MqttTelemetryPublisher {
+public class MqttTPublisher {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MqttTelemetryPublisher.class);
-    private static final String TOPIC = "telemetry";
+    private static final Logger LOG = LoggerFactory.getLogger(MqttTPublisher.class);
+    private static final String TOPIC = "t";
     private static final String METADATA = "/?content-type=application%2Fjson";
     private static final String MQTT_BASE_URL = String.format("tcp://%s:%d",
             HONO_HOST,
@@ -33,12 +27,12 @@ public class MqttTelemetryPublisher {
     private static IMqttClient client;
     private static MqttConnectOptions options;
 
-    public MqttTelemetryPublisher() {
+    public MqttTPublisher() {
         options = new MqttConnectOptions();
         options.setUserName(mqttDeviceAuthId + "@" + MY_TENANT_ID);
         options.setPassword(devicePassword.toCharArray());
         options.setAutomaticReconnect(true);
-        options.setConnectionTimeout(10);       // maximum seconds for the connection establishment
+        options.setConnectionTimeout(10);
     }
 
     public static void main(String[] args) {
@@ -46,7 +40,7 @@ public class MqttTelemetryPublisher {
         final String payloadString = "{\"temp\": 5}";
         try {
             String clientId = UUID.randomUUID().toString();
-            MqttTelemetryPublisher producer = new MqttTelemetryPublisher();
+            MqttTPublisher producer = new MqttTPublisher();
             client = new MqttClient(MQTT_BASE_URL, clientId, new MemoryPersistence());
             producer.connect(options, clientId);
             publishData(payloadString);
@@ -63,7 +57,7 @@ public class MqttTelemetryPublisher {
             message.setQos(QOS);
             message.setRetained(false);
             client.publish(TOPIC + METADATA, message);
-            LOG.debug("(If Authorized by MQTT adapter) Data Correctly Published !");
+            LOG.debug("Data Correctly Published !");
         } else {
             LOG.error("Error: Topic or Msg = Null or MQTT Client is not Connected !");
         }
