@@ -1,60 +1,54 @@
 package unimore.iot.architectures.tirocinio.hono.businessapplications;
 
 import com.google.gson.Gson;
-import io.vertx.core.CompositeFuture;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import org.eclipse.hono.application.client.DownstreamMessage;
-import org.eclipse.hono.application.client.MessageConsumer;
-import org.eclipse.hono.application.client.TimeUntilDisconnectNotification;
+import org.eclipse.hono.application.client.*;
 import org.eclipse.hono.application.client.amqp.AmqpApplicationClient;
 import org.eclipse.hono.application.client.amqp.AmqpMessageContext;
 import org.eclipse.hono.application.client.amqp.ProtonBasedApplicationClient;
 import org.eclipse.hono.client.ServiceInvocationException;
 import org.eclipse.hono.client.amqp.config.ClientConfigProperties;
 import org.eclipse.hono.client.amqp.connection.HonoConnection;
+import org.eclipse.hono.util.Lifecycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
-import unimore.iot.architectures.tirocinio.hono.devices.mqtt.model.MessageDescriptor;
+import unimore.iot.architectures.tirocinio.hono.model.MessageDescriptor;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Function;
+
+import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
 
 /**
  * This Northbound Business Application allows to
- *
- * 1. Receive temperature data from devices belonging to a tenant automatically configured in
- *    {@link unimore.iot.architectures.tirocinio.hono.BusinessApplicationEngine}
+ * <p>
+ * 1. Receive temperature data from devices belonging to a tenant.
+ * The tenant is automatically configured in {@link unimore.iot.architectures.tirocinio.hono.BusinessApplicationEngine}
  * 2. Calculate the average of all temperature values received both in Json and text-plain format
- *    while octet-stream will be simply ignored
+ * while octet-stream will be simply ignored
  * 3. Using device notifications automatically sends commands containing the average temperature
- *    to all devices that subscribe to the command topic.
- *
+ * to all devices that subscribe to the command topic.
  *
  * @author Riccardo Prevedi
  * @created 05/03/2023 - 18:45
  * @project architectures-iot
  */
 
-public class TemperatureNorthboundApp {
-    private static final Logger LOG = LoggerFactory.getLogger(TemperatureNorthboundApp.class);
+public class TemperatureApp {
+    private static final Logger LOG = LoggerFactory.getLogger(TemperatureApp.class);
     private static final String HONO_CLIENT_USER = "consumer@HONO";
     private static final String HONO_CLIENT_PASSWORD = "verysecret";
+    private final Vertx vertx = Vertx.vertx();  // embedded Vertx instance
+    private final AmqpApplicationClient client;
+
     private static final int RECONNECT_ATTEMPTS = 2;
     private String tenant;
 
-    private final AmqpApplicationClient client;
-    private final Vertx vertx = Vertx.vertx();  // embedded Vertx instance
 
     private MessageConsumer telemetryConsumer;
     private MessageConsumer eventConsumer;
@@ -79,7 +73,7 @@ public class TemperatureNorthboundApp {
     private final Map<String, TimeUntilDisconnectNotification> pendingTtdNotification = new HashMap<>();
 
 
-    public TemperatureNorthboundApp() {
+    public TemperatureApp() {
         client = createApplicationClient();
     }
 
@@ -91,11 +85,11 @@ public class TemperatureNorthboundApp {
      */
     private AmqpApplicationClient createApplicationClient() {
         ClientConfigProperties props = new ClientConfigProperties();
-        props.setLinkEstablishmentTimeout(5000L);   // milliseconds, the default is 1000L
-        props.setHost(HonoConstants.HONO_HOST);
-        props.setPort(HonoConstants.HONO_AMQP_CONSUMER_PORT);
+        props.setLinkEstablishmentTimeout(5000L);       // 5 sec
+        props.setHost(HONO_HOST);                       // k8s-node-1's IP
+        props.setPort(HONO_AMQP_CONSUMER_PORT);         // qdrouter service port
         props.setUsername(HONO_CLIENT_USER);
-        props.setPassword(HONO_CLIENT_PASSWORD);
+        props.setPassword(HONO_CLIENT_PASSWORD);        // default passwords of the Hono installation
         props.setReconnectAttempts(RECONNECT_ATTEMPTS);
         return new ProtonBasedApplicationClient(HonoConnection.newConnection(vertx, props));
     }
@@ -108,58 +102,79 @@ public class TemperatureNorthboundApp {
         // Instantiate the CompletableFuture
         // The asynchronous Java Object
         CompletableFuture<AmqpApplicationClient> startup = new CompletableFuture<>();
+        client.addDisconnectListener(honoConnection -> LOG.info("lost connection to Hono, trying to reconnect ..."));
+        client.addReconnectListener(honoConnection -> LOG.info("reconnected to Hono"));
 
-        client.start()
-                // When the client is started (fut1), execute this:
-                .compose(v -> CompositeFuture.all(createEventConsumer(), createTelemetryConsumer()))
+        final Promise<Void> readyTacker = Promise.promise();
+        client.addOnClientReadyHandler(readyTacker);
+        client
+                .start()
+                .compose(ok -> readyTacker.future())        // When the client is started (fut1), execute...
+                .compose(v -> Future.all(createTelemetryConsumer(),
+                        createEventConsumer()))
                 .onSuccess(ok -> startup.complete(client))  // Completes the Future, All consumers are created
                 .onFailure(startup::completeExceptionally); // At least one consumer creation failed
 
         try {
             startup.join();
-            LOG.info("The consumer is ready for telemetry and event messages that belong to the tenant: {}", getTenant());
+            LOG.info("The application is ready for telemetry and event messages from devices which belong to the tenant: {}", getTenant());
+            System.in.read();
         } catch (CompletionException e) {
-            LOG.error("{} consumer failed to start [{}:{}]",
-                    "AMQP", HonoConstants.HONO_HOST, HonoConstants.HONO_AMQP_CONSUMER_PORT, e.getCause());
+            LOG.error("{} application failed to start [{}:{}]",
+                    "AMQP", HONO_HOST, HONO_AMQP_CONSUMER_PORT, e.getCause());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
-        // TODO: implements client shutDown
+        final CompletableFuture<ApplicationClient<? extends MessageContext>> shutdown = new CompletableFuture<>();
+
+        final List<Future<Void>> closeFutures = new ArrayList<>();
+        Optional.ofNullable(eventConsumer)
+                .map(MessageConsumer::close)
+                .ifPresent(closeFutures::add);
+        Optional.ofNullable(telemetryConsumer)
+                .map(MessageConsumer::close)
+                .ifPresent(closeFutures::add);
+        Optional.of(client)
+                .map(Lifecycle::stop)
+                .ifPresent(closeFutures::add);
+
+        Future.join(closeFutures)
+                .compose(ok -> vertx.close())
+                .recover(throwable -> vertx.close())
+                .onComplete(new Handler<AsyncResult<Void>>() {
+                    @Override
+                    public void handle(AsyncResult<Void> voidAsyncResult) {
+                        shutdown.complete(client);
+                    }
+                });
+
+        // wait for clients to be closed
+        shutdown.join();
+        LOG.info("Consumer has been shut down");
     }
 
-    /**
-     * The app tries to connect to the specific AMQP 1.0 Endpoint event/TENANT
-     * And then creates the message consumer that handles event messages and invokes the notification callback
-     * {@link #handleCommandReadinessNotification(TimeUntilDisconnectNotification)} if the message indicates that it
-     * stays connected for a specified time.
-     *
-     * @return A succeeded future if the creation was successful, a failed Future otherwise.
-     */
     private Future<MessageConsumer> createEventConsumer() {
         return client.createEventConsumer(
                         tenant,
                         msg -> {
                             // handle command readiness notification
-                            msg.getTimeUntilDisconnectNotification().ifPresent(this::handleCommandReadinessNotification);
+                            msg.getTimeUntilDisconnectNotification()
+                                    .ifPresent(this::handleCommandReadinessNotification);
                             handleEventMessage(msg);
                         },
                         cause -> LOG.error("event consumer closed by remote", cause))
                 .onSuccess(consumer -> this.eventConsumer = consumer);
     }
 
-    /**
-     * The app tries to connect to the specific AMQP 1.0 Endpoint telemetry/TENANT
-     * And then creates the message consumer that handles telemetry messages and invokes the notification callback
-     * {@link #handleCommandReadinessNotification(TimeUntilDisconnectNotification)} if the message indicates that it
-     * stays connected for a specified time.
-     *
-     * @return A succeeded future if the creation was successful, a failed Future otherwise.
-     */
+
     private Future<MessageConsumer> createTelemetryConsumer() {
         return client.createTelemetryConsumer(
                         tenant,
                         msg -> {
                             // handle command readiness notification
-                            msg.getTimeUntilDisconnectNotification().ifPresent(this::handleCommandReadinessNotification);
+                            msg.getTimeUntilDisconnectNotification()
+                                    .ifPresent(this::handleCommandReadinessNotification);
                             handleTelemetryMessage(msg);
                             checkTelemetryMessageContentType(msg);
                         },
@@ -217,7 +232,7 @@ public class TemperatureNorthboundApp {
 
                         // for devices that stay connected, start a periodic timer now that repeatly sendes a command
                         // to the device
-                        vertx.setPeriodic((long) HonoConstants.COMMAND_INTERVAL_FOR_DEVICES_CONNECTED_WITH_UNLIMITED_EXPIRY * 1000,
+                        vertx.setPeriodic((long) COMMAND_INTERVAL_FOR_DEVICES_CONNECTED_WITH_UNLIMITED_EXPIRY * 1000,
                                 id -> {
                                     sendCommand(notificationToHandle);
                                     setPeriodicCommandSenderTimerCanceler(id, notification);
@@ -359,27 +374,12 @@ public class TemperatureNorthboundApp {
                 .average().orElse(0);
     }
 
-    /**
-     * Handler method for a Message from Hono that was received as telemetry data.
-     * <p>
-     * The tenant, the device, the payload, the content-type, the creation-time and the application properties
-     * will be logged.
-     *
-     * @param msg The message that was received.
-     */
-    private void handleTelemetryMessage(DownstreamMessage<AmqpMessageContext> msg) {
+     private void handleTelemetryMessage(DownstreamMessage<AmqpMessageContext> msg) {
         LOG.debug("received telemetry data [tenant: {}, device: {}, content-type: {}]: [{}].",
                 msg.getTenantId(), msg.getDeviceId(), msg.getContentType(), msg.getPayload());
     }
 
-    /**
-     * Handler method for a Message from Hono that was received as event data.
-     * <p>
-     * The tenant, the device, the payload, the content-type, the creation-time and the application properties will
-     * be logged.
-     *
-     * @param msg The message that was received.
-     */
+
     private static void handleEventMessage(final DownstreamMessage<AmqpMessageContext> msg) {
         LOG.debug("received event [tenant: {}, device: {}, content-type: {}]: [{}].",
                 msg.getTenantId(), msg.getDeviceId(), msg.getContentType(), msg.getPayload());
