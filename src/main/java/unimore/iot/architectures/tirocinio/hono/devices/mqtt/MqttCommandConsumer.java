@@ -1,4 +1,4 @@
-package unimore.iot.architectures.tirocinio.hono.devices;
+package unimore.iot.architectures.tirocinio.hono.devices.mqtt;
 
 import io.vertx.core.Vertx;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
@@ -8,7 +8,7 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
+import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
 
 import java.util.UUID;
 

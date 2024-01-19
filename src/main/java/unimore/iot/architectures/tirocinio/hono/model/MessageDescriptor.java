@@ -1,4 +1,4 @@
-package unimore.iot.architectures.tirocinio.hono.devices.mqtt.model;
+package unimore.iot.architectures.tirocinio.hono.model;
 
 /**
  * Basic and demo structure of a common message carrying a numeric value
@@ -11,6 +11,8 @@ package unimore.iot.architectures.tirocinio.hono.devices.mqtt.model;
 public class MessageDescriptor {
 
     public static final String ENGINE_TEMPERATURE_SENSOR = "engine_temperature_sensor";
+
+    public static final String HTTP_TEMPERATURE_SENSOR = "http_temperature_sensor";
 
     private long timestamp;
 

@@ -1,4 +1,4 @@
-package unimore.iot.architectures.tirocinio.hono.devices;
+package unimore.iot.architectures.tirocinio.hono.devices.amqp;
 
 import io.vertx.core.Vertx;
 import org.apache.qpid.proton.message.Message;
@@ -8,7 +8,7 @@ import org.eclipse.hono.client.amqp.connection.HonoConnection;
 import org.eclipse.hono.client.device.amqp.AmqpAdapterClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
+import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
 
 /**
  * @author Riccardo Prevedi

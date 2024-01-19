@@ -1,4 +1,4 @@
-package unimore.iot.architectures.tirocinio.hono.devices.mqtt.model;
+package unimore.iot.architectures.tirocinio.hono.model;
 
 import java.util.Random;
 
