@@ -17,12 +17,11 @@ import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+
+import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
 
 /**
@@ -32,31 +31,36 @@ import java.util.concurrent.CompletionException;
  * <p>
  * The code consumes data until it receives any input on its console (which finishes it and closes vertx).
  */
-public class DemoHttpSolution {
+public class DemoSolution {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DemoHttpSolution.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DemoSolution.class);
     private static final String HONO_CLIENT_USER = "consumer@HONO";
     private static final String HONO_CLIENT_PASSWORD = "verysecret";
     private final Vertx vertx = Vertx.vertx();  // embedded Vertx instance
     private final ApplicationClient<? extends MessageContext> client;
-    private Boolean sendOneWayCommands = false;
+    private Boolean SEND_ONE_WAY_COMMANDS = false;
     private static final String COMMAND_SEND_LIFECYCLE_INFO = "sendLifecycleInfo";
     private static final Random RAND = new Random();
     private MessageConsumer eventConsumer;
     private MessageConsumer telemetryConsumer;
     protected final LifecycleStatus lifecycleStatus = new LifecycleStatus();
 
+    private final Map<String, TimeUntilDisconnectNotification> pendingTtdNotification = new HashMap<>();
 
-    public DemoHttpSolution() {
+    private final Map<String, Handler<Void>> periodicCommandSenderTimerCancelerMap = new HashMap<>();
+
+
+    public DemoSolution() {
         this.client = createAmqpApplicationClient();
     }
 
     /**
      * Class constructor
+     *
      * @param isOwCommand default false
      */
-    public DemoHttpSolution(Boolean isOwCommand) {
-        this.sendOneWayCommands = isOwCommand;
+    public DemoSolution(Boolean isOwCommand) {
+        this.SEND_ONE_WAY_COMMANDS = isOwCommand;
         this.client = createAmqpApplicationClient();
     }
 
@@ -270,8 +274,35 @@ public class DemoHttpSolution {
      * @return The timeout (milliseconds) to be set for the command.
      */
     private Duration calculateCommandTimeout(final TimeUntilDisconnectNotification notification) {
-        // let the command expire when the notification expires
-        return Duration.ofMillis(notification.getMillisecondsUntilExpiry());
+        if (notification.getTtd() == -1) {
+            // let the command expire directly before the next periodic timer is started
+            return Duration.ofMillis(COMMAND_INTERVAL_FOR_DEVICES_CONNECTED_WITH_UNLIMITED_EXPIRY * 1000L);
+        } else {
+            // let the command expire when the notification expires
+            return Duration.ofMillis(notification.getMillisecondsUntilExpiry());
+        }
+    }
+
+    private void setPeriodicCommandSenderTimerCanceler(final Long timerId,
+                                                       final TimeUntilDisconnectNotification ttdNotification) {
+        this.periodicCommandSenderTimerCancelerMap.put(ttdNotification.getTenantAndDeviceId(), v -> {
+            vertx.cancelTimer(timerId);
+            periodicCommandSenderTimerCancelerMap.remove(ttdNotification.getTenantAndDeviceId());
+        });
+    }
+
+    private void cancelPeriodicCommandSender(final TimeUntilDisconnectNotification notification) {
+        if (isPeriodicCommandSenderActiveForDevice(notification)) {
+            LOG.debug("Cancelling periodic sender for {}", notification.getTenantAndDeviceId());
+            periodicCommandSenderTimerCancelerMap.get(notification.getTenantAndDeviceId()).handle(null);
+        } else {
+            LOG.debug("Wanted to cancel periodic sender for {}, but could not find one",
+                    notification.getTenantAndDeviceId());
+        }
+    }
+
+    private boolean isPeriodicCommandSenderActiveForDevice(final TimeUntilDisconnectNotification notification) {
+        return periodicCommandSenderTimerCancelerMap.containsKey(notification.getTenantAndDeviceId());
     }
 
     /**
@@ -280,29 +311,87 @@ public class DemoHttpSolution {
      * @param notification The notification that was received for the device.
      */
     private void sendCommand(final TimeUntilDisconnectNotification notification) {
-        if (sendOneWayCommands) {
+        if (SEND_ONE_WAY_COMMANDS) {
             sendOneWayCommandToAdapter(notification.getTenantId(), notification.getDeviceId(), notification);
         } else {
             sendCommandToAdapter(notification.getTenantId(), notification.getDeviceId(), notification);
         }
     }
 
-    /**
-     * Handler method for a <em>device ready for command</em> notification (by an explicit event or contained
-     * implicitly in another message).
-     * <p>
-     * For notifications with a positive ttd value (as usual for request-response protocols), the
-     * code creates a simple command in JSON.
-     * <p>
-     *
-     * @param notification The notification containing the tenantId, deviceId and the Instant (that
-     *                     defines until when this notification is valid). See {@link TimeUntilDisconnectNotification}.
-     */
     private void handleCommandReadinessNotification(TimeUntilDisconnectNotification notification) {
-        LOG.info("Device is ready to receive a command : [{}].", notification);
-        sendCommand(notification);
+        if (notification.getTtd() <= 0) {
+            handlePermanentlyConnectedCommandReadinessNotification(notification);
+        } else {
+            LOG.info("Device is ready to receive a command : [{}].", notification);
+            sendCommand(notification);
+        }
     }
 
+    /**
+     * Handle a ttd notification for permanently connected devices.
+     * <p>
+     * Instead of immediately handling the notification, it is first put to a map and a timer is started to handle it
+     * later. Notifications for the same device that are received before the timer expired, will overwrite the original
+     * notification. By this an <em>event flickering</em> (like it could occur when starting the app while several
+     * notifications were persisted in the messaging network) is handled correctly.
+     * <p>
+     * If the contained <em>ttd</em> is set to -1, a command will be sent periodically every
+     * {@link HonoConstants#COMMAND_INTERVAL_FOR_DEVICES_CONNECTED_WITH_UNLIMITED_EXPIRY} seconds to the device
+     * until a new notification was received with a <em>ttd</em> set to 0.
+     *
+     * @param notification The notification of a permanently connected device to handle.
+     */
+    private void handlePermanentlyConnectedCommandReadinessNotification(
+            final TimeUntilDisconnectNotification notification) {
+
+        final String keyForDevice = notification.getTenantAndDeviceId();
+
+        final TimeUntilDisconnectNotification previousNotification = pendingTtdNotification.get(keyForDevice);
+        if (previousNotification != null) {
+            if (notification.getCreationTime().isAfter(previousNotification.getCreationTime())) {
+                LOG.info("Set new ttd value [{}] of notification for [{}]",
+                        notification.getTtd(), notification.getTenantAndDeviceId());
+                pendingTtdNotification.put(keyForDevice, notification);
+            } else {
+                LOG.trace("Received notification for [{}] that was already superseded by newer [{}]",
+                        notification, previousNotification);
+            }
+        } else {
+            pendingTtdNotification.put(keyForDevice, notification);
+            // there was no notification available already, so start a handler now
+            vertx.setTimer(1000, timerId -> {
+                LOG.debug("Handle device notification for [{}].", notification.getTenantAndDeviceId());
+                // now take the notification from the pending map and handle it
+                final TimeUntilDisconnectNotification notificationToHandle = pendingTtdNotification.remove(keyForDevice);
+                if (notificationToHandle != null) {
+                    if (notificationToHandle.getTtd() == -1) {
+                        LOG.info("Device notified as being ready to receive a command until further notice : [{}].",
+                                notificationToHandle);
+
+                        // cancel a still existing timer for this device (if found)
+                        cancelPeriodicCommandSender(notification);
+                        // immediately send the first command
+                        sendCommand(notificationToHandle);
+
+                        // for devices that stay connected, start a periodic timer now that repeatedly sends a command
+                        // to the device
+                        vertx.setPeriodic(
+                                (long) COMMAND_INTERVAL_FOR_DEVICES_CONNECTED_WITH_UNLIMITED_EXPIRY
+                                        * 1000,
+                                id -> {
+                                    sendCommand(notificationToHandle);
+                                    // register a canceler for this timer directly after it was created
+                                    setPeriodicCommandSenderTimerCanceler(id, notification);
+                                });
+                    } else {
+                        LOG.info("Device notified as not being ready to receive a command (anymore) : [{}].", notification);
+                        cancelPeriodicCommandSender(notificationToHandle);
+                        LOG.debug("Device will not receive further commands : [{}].", notification.getTenantAndDeviceId());
+                    }
+                }
+            });
+        }
+    }
 
     /**
      * Handler method for a Message from Hono that was received as telemetry data.
