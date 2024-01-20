@@ -5,9 +5,10 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
-import unimore.iot.architectures.tirocinio.hono.devices.mqtt.model.EngineTemperatureSensor;
-import unimore.iot.architectures.tirocinio.hono.devices.mqtt.model.MessageDescriptor;
+import unimore.iot.architectures.tirocinio.hono.model.EngineTemperatureSensor;
+import unimore.iot.architectures.tirocinio.hono.model.MessageDescriptor;
+
+import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
 import java.util.UUID;
 
@@ -27,55 +28,42 @@ import java.util.UUID;
 
 public class JsonTemperatureProducer {
     private static final Logger LOG = LoggerFactory.getLogger(JsonTemperatureProducer.class);
-    private static final String TENANT_ID = "mytenant";
-    private static final String AUTH_ID = "device-mqtt";
-    private static final String PASSWORD = "hono-secret";
     private static final String TOPIC = "telemetry";
     private static final String METADATA = "/?content-type=application%2Fjson";
     private static final int QOS = 0;
-    private static final int MESSAGE_COUNT = 100;
+    private static final int MESSAGE_COUNT = 10;
     private static IMqttClient client;
     private static MqttConnectOptions options;
 
     public JsonTemperatureProducer() {
         options = new MqttConnectOptions();
-        options.setUserName(AUTH_ID + "@" + TENANT_ID);
-        options.setPassword(PASSWORD.toCharArray());
+        options.setUserName(mqttDeviceAuthId + "@" + MY_TENANT_ID);
+        options.setPassword(devicePassword.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
         options.setConnectionTimeout(10);   // maximum seconds for the connection establishment
     }
 
     public static void main(String[] args) {
-
         LOG.info("Client Json started ... ");
         try {
             JsonTemperatureProducer jsonProducer = new JsonTemperatureProducer();
-
             String clientId = UUID.randomUUID().toString();
-
-            String mqttAdapterUrl = String.format("tcp://%s:%d", HonoConstants.HONO_HOST, HonoConstants.HONO_MQTT_ADAPTER_PORT);
-
+            String mqttAdapterUrl = String.format("tcp://%s:%d",
+                    HONO_HOST,
+                    HONO_MQTT_ADAPTER_PORT);
             client = new MqttClient(mqttAdapterUrl, clientId, new MemoryPersistence());
-
             // connect to Hono mqtt adapter
             jsonProducer.connect(options, clientId);
-
             EngineTemperatureSensor engineTemperatureSensor = new EngineTemperatureSensor();
 
             for (int i = 0; i < MESSAGE_COUNT; i++) {
-
                 double sensorValue = engineTemperatureSensor.getTemperatureValue();
-
                 String jsonString = buildJsonMessage(sensorValue);
-
                 publishData(jsonString);
-
                 Thread.sleep(1000);
             }
-
             jsonProducer.disconnect(clientId);
-
         } catch (MqttException | InterruptedException e) {
             e.printStackTrace();
         }

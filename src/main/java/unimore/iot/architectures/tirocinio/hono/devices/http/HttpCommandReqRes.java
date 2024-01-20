@@ -16,27 +16,21 @@ import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*
  */
 
 public class HttpCommandReqRes {
-
     private static final Logger LOG = LoggerFactory.getLogger(HttpCommandReqRes.class);
     private static final String USERNAME = httpDeviceAuthId + "@" + MY_TENANT_ID;
+    private static final String BASE_URL = String.format("http://%s:%d",
+            HONO_HOST,
+            HONO_HTTP_ADAPTER_PORT);
+    private static final String URI_QUERY_REQ = "/telemetry?hono-ttd=60";
     private static final String BRIGHTNESS_CHANGED_TRUE = "{\"brightness-changed\": true}";
     private static String commandRequestId;
-    private static Integer commandStatusCode;   // command status execution
-
+    private static Integer commandStatusExeCode;
 
     public static void main(String[] args) {
-
-        final String uriQueryReq = "/telemetry?hono-ttd=60"; // 60 sec waiting for the res
-        String baseUrl = String.format("http://%s:%d",  // http://192.168.56.18:30516
-                HONO_HOST,
-                HONO_HTTP_ADAPTER_PORT);
-
-        Unirest.config().defaultBaseUrl(baseUrl);
-
-        System.out.println("----------- command request ----------");
-
+        Unirest.config().defaultBaseUrl(BASE_URL);
+        System.out.println("\n----------- command request ----------\n");
         Unirest
-                .post(uriQueryReq)
+                .post(URI_QUERY_REQ)
                 .basicAuth(USERNAME, devicePassword)
                 .header("content-type", "application/json") // mandatory if empty body
                 .asString()
@@ -48,10 +42,10 @@ public class HttpCommandReqRes {
                             cmd.getBody());
                     if (cmd.getHeaders().containsKey("hono-cmd-req-id") && cmd.getStatus() == 200) {
                         commandRequestId = cmd.getHeaders().getFirst("hono-cmd-req-id");
-                        commandStatusCode = cmd.getStatus();
-                        sendingResponseToCommand(commandRequestId, commandStatusCode);
+                        commandStatusExeCode = cmd.getStatus();
+                        sendingResponseToCommand(commandRequestId, commandStatusExeCode);
                     } else {
-                        LOG.error("No hono-cmd-req-id or 200 found in the command response");
+                        LOG.error("Null Request ID ! or 200 status code not present");
                         LOG.error("Response can't be sent !");
                     }
                 })
@@ -60,16 +54,13 @@ public class HttpCommandReqRes {
                     LOG.error(res.getBody());
                 });
     }
-
     private static void sendingResponseToCommand(String reqId, Integer sc) {
-
-        System.out.println("----------- command response ----------");
+        System.out.println("\n----------- command response ----------\n");
         String uriQueryRes = String.format("/command/res/%s?hono-cmd-status=%d", reqId, sc);
-
         Unirest
                 .post(uriQueryRes)
                 .basicAuth(USERNAME, devicePassword)
-                .header("content-type", "application/json") // set if the result of processing the command on the device is non-empty
+                .header("content-type", "application/json")
                 .header("hono-cmd-req-id", reqId)
                 .body(BRIGHTNESS_CHANGED_TRUE)
                 .asJson()

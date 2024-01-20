@@ -29,13 +29,15 @@ public class HttpCommandOw {
 
     private static final Logger LOG = LoggerFactory.getLogger(HttpCommandOw.class);
     private static final String URI = "/telemetry?hono-ttd=60"; // 60 sec waiting for the res
+    private static final String USERNAME = httpDeviceAuthId + "@" + MY_TENANT_ID;
+    private static final String BASE_URL = String.format("http://%s:%d",
+            HONO_HOST,
+            HONO_HTTP_ADAPTER_PORT);
 
     public static void main(String[] args) {
-        String username = httpDeviceAuthId + "@" + MY_TENANT_ID;
-
         Unirest
-                .post("http://" + HONO_HOST + ":" + HONO_HTTP_ADAPTER_PORT + URI)
-                .basicAuth(username, devicePassword)
+                .post(BASE_URL + URI)
+                .basicAuth(USERNAME, devicePassword)
                 .header("content-type", "application/json") // Required, if the request body is empty
                 .asString()
                 .ifSuccess(cmd -> {

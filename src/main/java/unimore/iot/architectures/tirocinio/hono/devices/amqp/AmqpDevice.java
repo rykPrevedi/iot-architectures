@@ -10,7 +10,7 @@ import org.eclipse.hono.client.device.amqp.AmqpAdapterClient;
 import org.eclipse.hono.util.QoS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
+import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
 import unimore.iot.architectures.tirocinio.hono.devices.mqtt.JsonTemperatureProducer;
 
 /**

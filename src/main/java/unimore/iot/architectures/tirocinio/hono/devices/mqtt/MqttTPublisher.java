@@ -11,8 +11,8 @@ import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*
 import java.util.UUID;
 
 /**
- * Demo class that publish telemetry data on the "t" topic
- * {"temp": 5} is the json string that will be sent
+ * Demo class that Publish telemetry data on the "t" topic
+ * Publishing {"temp": 5} json string
  */
 
 public class MqttTPublisher {

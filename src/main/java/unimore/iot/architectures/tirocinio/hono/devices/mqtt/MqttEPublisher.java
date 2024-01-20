@@ -10,8 +10,8 @@ import java.util.UUID;
 import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
 /**
- * Demo class that publish events on the "e" topic
- * {} json string that will be sent
+ * Demo class that Publish events on the "e" topic
+ * Publishing {"alarm": 1} json string
  */
 
 public class MqttEPublisher {

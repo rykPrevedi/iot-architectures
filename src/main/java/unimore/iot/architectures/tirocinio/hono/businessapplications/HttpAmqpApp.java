@@ -17,8 +17,8 @@ import org.eclipse.hono.client.amqp.config.ClientConfigProperties;
 import org.eclipse.hono.client.amqp.connection.HonoConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import unimore.iot.architectures.tirocinio.hono.Constants.HonoConstants;
-import unimore.iot.architectures.tirocinio.hono.devices.mqtt.model.MessageDescriptor;
+import unimore.iot.architectures.tirocinio.hono.constants.HonoConstants;
+import unimore.iot.architectures.tirocinio.hono.model.MessageDescriptor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static unimore.iot.architectures.tirocinio.hono.businessapplications.HttpProvisioningManagementApp.getDeviceByTenant;
+import static unimore.iot.architectures.tirocinio.hono.devicesprovision.HonoHttpProvisionerBase.getDeviceByTenant;
 
 /**
  * @author Riccardo Prevedi
