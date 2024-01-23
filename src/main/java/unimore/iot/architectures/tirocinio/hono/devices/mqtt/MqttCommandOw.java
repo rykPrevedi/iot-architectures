@@ -15,7 +15,6 @@ import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*
  */
 
 public class MqttCommandOw {
-
     private static final Logger LOG = LoggerFactory.getLogger(MqttCommandOw.class);
     private static final String TOPIC = "c///q/#";
     private static final String MQTT_BASE_URL = String.format("tcp://%s:%d",
@@ -35,35 +34,29 @@ public class MqttCommandOw {
 
     public static void main(String[] args) {
         LOG.info("Client MQTT started ... ");
-
         try {
             String clientId = UUID.randomUUID().toString();
             MqttCommandOw consumer = new MqttCommandOw();
             client = new MqttClient(MQTT_BASE_URL, clientId, new MemoryPersistence());
             consumer.connect(options, clientId);
             subscribe();
-
         } catch (MqttException e) {
             e.printStackTrace();
         }
     }
-
     private static void subscribe() throws MqttException {
         client.subscribe(TOPIC, QOS, (s, cmdMessage) -> {
             byte[] payload = cmdMessage.getPayload();
             LOG.info("Received from topic ({}) Command -> {}", s, new String(payload));
         });
     }
-
     private void connect(MqttConnectOptions options, String clientId) throws MqttException {
-        IMqttToken iMqttToken = client.connectWithResult(options);
+        client.connect(options);
         if (client.isConnected()) {
             LOG.info("Connected to the HONO Mqtt Adapter ! ClientID: [{}]", clientId);
-            LOG.info("Context : {}", iMqttToken.getUserContext());
         } else
             LOG.error("connection could not be established");
     }
-
     private static void disconnect(String clientId) throws MqttException {
         client.disconnect();
         client.close();

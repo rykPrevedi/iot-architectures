@@ -1,6 +1,9 @@
 package unimore.iot.architectures.tirocinio.hono.devices.mqtt;
 
 import org.eclipse.paho.client.mqttv3.*;
+import org.eclipse.paho.client.mqttv3.internal.wire.MqttPubAck;
+import org.eclipse.paho.client.mqttv3.internal.wire.MqttPublish;
+import org.eclipse.paho.client.mqttv3.internal.wire.MqttWireMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +54,7 @@ public class MqttEPublisher {
 
     private static void publishData(String msgString) throws MqttException {
         LOG.info("Publishing to Topic: {} Data: {}", TOPIC, msgString);
+
         if (msgString != null) {
             MqttMessage message = new MqttMessage(msgString.getBytes());
             message.setQos(QOS);
@@ -63,10 +67,9 @@ public class MqttEPublisher {
     }
 
     private void connect(MqttConnectOptions options, String clientId) throws MqttException {
-        IMqttToken iMqttToken = client.connectWithResult(options);
+        client.connect(options);
         if (client.isConnected()) {
             LOG.info("Connected to the HONO Mqtt Adapter ! ClientID: [{}]", clientId);
-            LOG.info("Context : {}", iMqttToken.getUserContext());
         } else
             LOG.error("connection could not be established");
     }

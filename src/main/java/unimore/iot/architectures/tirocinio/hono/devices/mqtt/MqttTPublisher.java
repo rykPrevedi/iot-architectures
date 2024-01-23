@@ -64,10 +64,9 @@ public class MqttTPublisher {
     }
 
     private void connect(MqttConnectOptions options, String clientId) throws MqttException {
-        IMqttToken iMqttToken = client.connectWithResult(options);
+        client.connect(options);
         if (client.isConnected()) {
             LOG.info("Connected to the HONO Mqtt Adapter ! ClientID: [{}]", clientId);
-            LOG.info("Context : {}", iMqttToken.getUserContext());
         } else
             LOG.error("connection could not be established");
     }
