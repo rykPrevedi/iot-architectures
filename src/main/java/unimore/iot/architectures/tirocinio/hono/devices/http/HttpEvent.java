@@ -25,15 +25,15 @@ public class HttpEvent {
     private static final String BASE_URL = String.format("http://%s:%d",
             HONO_HOST,
             HONO_HTTP_ADAPTER_PORT);
+    private  static  final String QOS = "1";
 
     public static void main(String[] args) {
         String message = "{\"alarm\": \"fire\"}";
-
         Unirest
                 .post(BASE_URL + URI_PATH)
                 .basicAuth(USERNAME, devicePassword)
                 .header("content-type", "application/json")
-                .header("qos-level", "1")
+                .header("qos-level", QOS)
                 .header("hono-ttl", "10")
                 .body(message)
                 .asString()

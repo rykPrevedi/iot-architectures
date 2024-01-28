@@ -9,8 +9,8 @@ import unimore.iot.architectures.tirocinio.hono.model.MessageDescriptor;
 import static unimore.iot.architectures.tirocinio.hono.constants.HonoConstants.*;
 
 /**
- * Demo class that POST a request with a JSON body (sensor temperature value = 5)
- * and the message will be sent with the default QoS "at most once" (0)
+ * Demo class that POST 10 requests every 5 seconds with a JSON serialized body
+ * The default QoS granted is "at most once" (0)
  * <p>
  * If the request is correct, the response will contain a message like:
  * HTTP/1.1 202 Accepted
@@ -27,18 +27,18 @@ public class HttpTelemetry {
             HONO_HOST,
             HONO_HTTP_ADAPTER_PORT);
     private static final Integer MESSAGE_COUNT = 10;
+    private static final Integer PERIOD = 5000; // ms
+    private static final String QOS = "0";
 
-    public HttpTelemetry() {
-    }
+    public HttpTelemetry() {}
 
     public static void main(String[] args) throws InterruptedException {
         double sensorValue = 5;
         String jsonString = buildJsonMessage(sensorValue);
         HttpTelemetry httpTelemetry = new HttpTelemetry();
-
         for (int i = 0; i < MESSAGE_COUNT; i++) {
             httpTelemetry.publishHttpData(jsonString);
-            Thread.sleep(5000);
+            Thread.sleep(PERIOD);
         }
     }
 
@@ -47,7 +47,7 @@ public class HttpTelemetry {
                 .post(BASE_URL + URI_PATH)
                 .basicAuth(USERNAME, devicePassword)
                 .header("content-type", "application/json")
-                .header("qos-level", "0")
+                .header("qos-level", QOS)
                 .body(b)
                 .asString()
                 .ifSuccess(r -> LOG.info("\nHTTP/1.1 {} {}",
@@ -61,13 +61,15 @@ public class HttpTelemetry {
                 });
     }
 
-    private static String buildJsonMessage(double sensorValue) {
+    private static String buildJsonMessage(double v) {
         try {
             Gson gson = new Gson();
-            MessageDescriptor messageDescriptor = new MessageDescriptor(MessageDescriptor.HTTP_TEMPERATURE_SENSOR, sensorValue);
+            MessageDescriptor messageDescriptor =
+                    new MessageDescriptor(MessageDescriptor.HTTP_SENSOR_VALUE, v);
             return gson.toJson(messageDescriptor);
         } catch (Exception e) {
-            LOG.error("Error creating json payload ! Message: {}", e.getLocalizedMessage());
+            LOG.error("Error creating json payload ! Message: {}",
+                    e.getLocalizedMessage());
             return null;
         }
     }

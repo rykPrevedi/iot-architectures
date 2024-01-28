@@ -128,12 +128,7 @@ public class DemoSolution {
         Future.join(closeFutures)
                 .compose(ok -> vertx.close())
                 .recover(throwable -> vertx.close())
-                .onComplete(new Handler<AsyncResult<Void>>() {
-                    @Override
-                    public void handle(AsyncResult<Void> voidAsyncResult) {
-                        shutdown.complete(client);
-                    }
-                });
+                .onComplete(h -> shutdown.complete(client));
 
         // wait for clients to be closed
         shutdown.join();
@@ -207,6 +202,7 @@ public class DemoSolution {
                         LOG.debug("Successfully sent command payload: [{}].", commandBuffer.toString());
                         LOG.debug("And received response: [{}].", Optional.ofNullable(result.getPayload())
                                 .orElseGet(Buffer::buffer).toString());
+
                     }
                 })
                 .onFailure(t -> {
